@@ -10,13 +10,20 @@ Apache Tika 2.3
 
 # 構築方法 (Ubuntu)
 
+```
 $ ./bin/solr start
 $ ./bin/solr create_core -c kassiscore -d _default
 $ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
 $ curl -X POST -H 'Content-type:application/json' --data-binary @ext/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
+```
 
-# データ登録方法
+# 実行方法
 
+```
+$ java -jar tika-server-standard-2.3.0.jar 
+$ ./bin/solr start
+$ go run main.go
+```
 
 
 # LICENSE
