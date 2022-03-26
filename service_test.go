@@ -1,4 +1,4 @@
-package service
+package kassiscore
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestExtnameToMediaTypeSuccess(t *testing.T) {
-	result := ExtnameToMediaType("hoge")
+	result := ExtnameToMediaType("bar")
 	if result != "File" {
 		t.Fatal("failed test")
 	}
@@ -24,7 +24,7 @@ func TestExtnameToMediaTypeSuccess(t *testing.T) {
 	}
 }
 
-func TestFileimport(t *testing.T) {
+func TestImportFromFile(t *testing.T) {
 
 	solrserveruri := "http://localhost:8983"
 	solrcorename := "kassiscore"
@@ -32,7 +32,7 @@ func TestFileimport(t *testing.T) {
 	SolrClearDocument(solrserveruri, solrcorename)
 
 	files := []string{"nonono"}
-	err := Fileimport(files)
+	err := importFromFile(files)
 	//TODO: errメッセージを確認したい（os: Unable to open file ～）
 	if err == nil {
 		t.Fatal("failed test")
@@ -42,7 +42,7 @@ func TestFileimport(t *testing.T) {
 	filepathname := filepath.Join(dir, "testdata", "Book1.xlsx")
 
 	files = []string{filepathname}
-	err = Fileimport(files)
+	err = importFromFile(files)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -66,10 +66,16 @@ func TestFileimport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if materials[1].ID != "/home/tmpz84/dev/kassis/src/testdata/Book1.xlsxデータ1" {
+	dir, _ = os.Getwd()
+	filepathname = filepath.Join(dir, "testdata", "Book1.xlsx")
+	targetid := filepathname + "データ1"
+	if materials[1].ID != targetid {
 		t.Fatal("failed test")
 	}
-	if materials[1].Foldername != "/home/tmpz84/dev/kassis/src/testdata" {
+
+	filepathname = filepath.Join(dir, "testdata")
+	targetfolder := filepathname
+	if materials[1].Foldername != targetfolder {
 		t.Fatal("failed test")
 	}
 	if materials[1].Filename != "Book1.xlsx" {
@@ -84,7 +90,7 @@ func TestFileimport(t *testing.T) {
 	filepathname = filepath.Join(dir, "testdata", "shinanogawa.pdf")
 
 	files = []string{filepathname}
-	err = Fileimport(files)
+	err = importFromFile(files)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -104,7 +110,7 @@ func TestFileimport(t *testing.T) {
 	filepathname2 := filepath.Join(dir, "testdata", "shinanogawa.pdf")
 
 	files = []string{filepathname1, filepathname2}
-	err = Fileimport(files)
+	err = importFromFile(files)
 	if err != nil {
 		t.Fatal("failed test")
 	}

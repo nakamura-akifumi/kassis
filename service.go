@@ -1,4 +1,4 @@
-package service
+package kassiscore
 
 import (
 	"context"
@@ -21,6 +21,14 @@ type Material struct {
 	Sheetname  string   `json:"sheetname"`
 	Mediatype  string   `json:"mediatype"`
 	Cellvalues []string `json:"cellvalues"`
+}
+
+// Web用のレスポンス構造体
+type KWRIF struct {
+	NumFound        int64
+	ResponseStatus  string
+	ResponseMessage string
+	Materials       []Material
 }
 
 const MEDIATYPE_EXCEL string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -77,8 +85,7 @@ func SolrClearDocument(uriaddress string, corename string) error {
 //TODO:そもそも必要なのか。。。
 //引数要改良
 //solrに接続する箇所も改良。毎回接続するのは問題。
-//ページングと詰めなおすのはコストになるので結果のポインタだけ返すか。
-func SolrQuery(uriaddress string, corename string) (*solr.Response, error) {
+func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, error) {
 
 	ctx := context.Background()
 	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
@@ -92,7 +99,14 @@ func SolrQuery(uriaddress string, corename string) (*solr.Response, error) {
 
 	opts := &solr.ReadOptions{Rows: 20, Debug: solr.DebugTypeQuery}
 	q := solr.NewQuery(opts)
-	q.SetQuery("*:*")
+
+	// cut whitespace and zenkaku space
+	qs = strings.TrimRight(qs, " 　")
+	if qs == "" {
+		q.SetQuery("*:*")
+	} else {
+		q.SetQuery("cellvalues:" + qs)
+	}
 	// But filter on any film of the horror genre
 	//q.AddFilter("genre", "horror")
 	// Then we set the sorting to happen descending based on the year property
@@ -105,8 +119,7 @@ func SolrQuery(uriaddress string, corename string) (*solr.Response, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(res.Data.NumFound)
-	fmt.Println(len(res.Data.Docs))
+	fmt.Printf("NumFound/FetchDocs:%d/%d\n", res.Data.NumFound, len(res.Data.Docs))
 
 	return res, nil
 }
@@ -201,7 +214,7 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 	return "ok"
 }
 
-func Fileimport(files []string) error {
+func ImportFromFile(files []string) error {
 	tikaserveruri := "http://localhost:9998"
 	solrserveruri := "http://localhost:8983"
 	solrcorename := "kassiscore"

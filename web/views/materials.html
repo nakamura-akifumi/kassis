@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>xxxx</title>
+</head>
+<body>
+<h1>Found:{{.NumFound}}</h1>
+
+<table class="list">
+    <tr>
+        <th>ID</th>
+        <th>内容</th>
+    </tr>
+    {{ range .Materials }}
+    <tr>
+        <td>{{.ID}}</td>
+        <td>{{.Cellvalues}}</td>
+    </tr>
+    {{ end }}
+</table>
+
+</body>
+</html>
+
