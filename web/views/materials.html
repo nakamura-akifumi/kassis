@@ -1,25 +1,49 @@
-<!DOCTYPE html>
+{{define "materials"}}
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>xxxx</title>
+    <title>kassis</title>
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="static/css/normalize.css">
+    <link rel="stylesheet" href="static/css/skeleton.css">
+    <link rel="icon" type="image/png" href="static/images/favicon.png">
 </head>
 <body>
-<h1>Found:{{.NumFound}}</h1>
+<div class="container">
 
-<table class="list">
-    <tr>
-        <th>ID</th>
-        <th>内容</th>
-    </tr>
-    {{ range .Materials }}
-    <tr>
-        <td>{{.ID}}</td>
-        <td>{{.Cellvalues}}</td>
-    </tr>
-    {{ end }}
-</table>
+    <form>
+        <div class="row">
+            <div class="six columns">
+                <label for="query">Query</label>
+                <input class="u-full-width" type="search" placeholder="query" id="qs">
+            </div>
+        </div>
+        <label for="message">Message2</label>
+        <input class="button-primary" type="submit" value="Search">
+    </form>
 
+    <div class="row">
+        <div class="one-half column" style="margin-top: 2%">
+            <h4>Found:{{.NumFound}}</h4>
+        </div>
+    </div>
+   
+    <table class="list">
+        <tr class="row">
+            <th>ID</th>
+            <th>内容</th>
+        </tr>
+        {{ range .Materials }}
+        <tr class="row">
+            <td>{{.ID}}</td>
+            <td>{{.Cellvalues}}</td>
+        </tr>
+        {{ end }}
+    </table>
+</div>
 </body>
 </html>
-
+{{end}}

@@ -28,14 +28,8 @@ func HandlerGetMaterials(c echo.Context) error {
 	if err != nil {
 		fmt.Println(err)
 	}
-	/*
-		encodedJSON, err := json.Marshal(&webresponse)
-		if err != nil {
-			fmt.Println(err)
-		}
-	*/
-	//	return c.Render(http.StatusOK, "hello", webresponse)
-	return c.Render(http.StatusOK, "materials.html", webresponse)
+
+	return c.Render(http.StatusOK, "materials", webresponse)
 
 }
 

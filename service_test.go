@@ -32,7 +32,7 @@ func TestImportFromFile(t *testing.T) {
 	SolrClearDocument(solrserveruri, solrcorename)
 
 	files := []string{"nonono"}
-	err := importFromFile(files)
+	err := ImportFromFile(files)
 	//TODO: errメッセージを確認したい（os: Unable to open file ～）
 	if err == nil {
 		t.Fatal("failed test")
@@ -42,12 +42,12 @@ func TestImportFromFile(t *testing.T) {
 	filepathname := filepath.Join(dir, "testdata", "Book1.xlsx")
 
 	files = []string{filepathname}
-	err = importFromFile(files)
+	err = ImportFromFile(files)
 	if err != nil {
 		t.Fatal("failed test")
 	}
 
-	res, err := SolrQuery(solrserveruri, solrcorename)
+	res, err := SolrQuery(solrserveruri, solrcorename, "")
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -90,12 +90,12 @@ func TestImportFromFile(t *testing.T) {
 	filepathname = filepath.Join(dir, "testdata", "shinanogawa.pdf")
 
 	files = []string{filepathname}
-	err = importFromFile(files)
+	err = ImportFromFile(files)
 	if err != nil {
 		t.Fatal("failed test")
 	}
 	//TODO: 登録されたデータの内容などを確認したい
-	res, err = SolrQuery(solrserveruri, solrcorename)
+	res, err = SolrQuery(solrserveruri, solrcorename, "")
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -110,11 +110,11 @@ func TestImportFromFile(t *testing.T) {
 	filepathname2 := filepath.Join(dir, "testdata", "shinanogawa.pdf")
 
 	files = []string{filepathname1, filepathname2}
-	err = importFromFile(files)
+	err = ImportFromFile(files)
 	if err != nil {
 		t.Fatal("failed test")
 	}
-	res, err = SolrQuery(solrserveruri, solrcorename)
+	res, err = SolrQuery(solrserveruri, solrcorename, "")
 	if err != nil {
 		t.Fatal("failed test")
 	}

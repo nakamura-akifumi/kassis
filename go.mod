@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/google/go-tika v0.2.0
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/mecenat/solr v1.3.2
