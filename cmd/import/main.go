@@ -61,10 +61,9 @@ func main() {
 	fmt.Print(files)
 	fmt.Print("\n")
 
-	err := service.Fileimport(files)
+	err := kassiscore.ImportFromFile(files)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(10)
 	}
 }
-
