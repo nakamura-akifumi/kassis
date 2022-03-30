@@ -12,8 +12,11 @@ func HandlerGetMaterials(c echo.Context) error {
 	webresponse.NumFound = 0
 	webresponse.ResponseStatus = "success"
 
-	q := c.QueryParam("q")
-	res, err := SolrQuery("http://localhost:8983", "kassiscore", q)
+	qs := c.QueryParam("qs")
+
+	fmt.Printf("qs:%s\n", qs)
+
+	res, err := SolrQuery("http://localhost:8983", "kassiscore", qs)
 	if err != nil {
 		fmt.Println("err")
 	}

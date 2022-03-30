@@ -14,15 +14,14 @@
 <body>
 <div class="container">
 
-    <form>
+    <form action="/materials" method="GET">
         <div class="row">
             <div class="six columns">
-                <label for="query">Query</label>
-                <input class="u-full-width" type="search" placeholder="query" id="qs">
+                <input class="u-full-width" type="search" placeholder="query" name="qs" id="qs">
             </div>
         </div>
-        <label for="message">Message2</label>
-        <input class="button-primary" type="submit" value="Search">
+        <input class="button-primary" type="button" value="送信">
+
     </form>
 
     <div class="row">

@@ -64,7 +64,7 @@ func TestMaterialsQueryHandler(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	fmt.Println(rec.Body.String())
+	//fmt.Println(rec.Body.String())
 
-	//assert.Equal(t, "2022A1", data.Materials[0].Cellvalues[0])
+	assert.Equal(t, "2022A1", rec.Body.String())
 }

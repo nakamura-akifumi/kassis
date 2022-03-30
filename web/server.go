@@ -1,18 +1,13 @@
 package main
 
 import (
-	"github.com/fsnotify/fsnotify"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nakamura-akifumi/kassis"
 	"html/template"
 	"io"
-	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 func logFormat() string {
@@ -38,132 +33,39 @@ func logFormat() string {
 	return format
 }
 
-/*
-type Template struct {
-	templates *template.Template
-}
-func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-	return t.templates.ExecuteTemplate(w, name, data)
-}
-*/
-
-const debug = true
-
-// Renderer is a custom html/template renderer for Echo framework
 type Renderer struct {
-	templates  *template.Template
-	whatchDir  string
-	tempateExt string
+	template *template.Template
+	debug    bool
+	location string
 }
 
-func New() *Renderer {
-	return &Renderer{}
+func NewRenderer(location string, debug bool) *Renderer {
+	tpl := new(Renderer)
+	tpl.location = location
+	tpl.debug = debug
+
+	tpl.ReloadTemplates()
+
+	return tpl
 }
 
-// Render renders a template document
-func (r *Renderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
-
-	// Add global methods if data is a map
-	if viewContext, isMap := data.(map[string]interface{}); isMap {
-		viewContext["reverse"] = c.Echo().Reverse
-	}
-	// Hot reload doesn't work correctly with base template
-	//if r.templates.Lookup("base"+r.tempateExt) != nil {
-	//	t := r.templates.Lookup(name)
-	//	return t.ExecuteTemplate(w, "base", data)
-	//}
-	return r.templates.ExecuteTemplate(w, name, data)
+func (t *Renderer) ReloadTemplates() {
+	t.template = template.Must(template.ParseGlob(t.location))
 }
 
-// LoadTemplates finds and loads templates by specified pattern
-func (r *Renderer) LoadTemplates(pattern string) {
-	r.whatchDir = filepath.Dir(pattern) + "/"
-	r.tempateExt = filepath.Ext(pattern)
-	if r.whatchDir == "" {
-		log.Fatal("Template directory not found!")
-	}
-	if r.tempateExt == "" {
-		log.Fatal("Template extension can't be recognized!")
-	}
-	log.Print("Directory to watch: ", r.whatchDir)
-	log.Print("Template file extension: ", r.tempateExt)
-	r.templates = template.Must(template.ParseGlob(pattern))
-}
-
-func (r *Renderer) StartFSWatcher() {
-	if r.templates == nil {
-		log.Fatal("StartFSWatcher method should be executed only after LoadTempates method")
-	}
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatal("Failed to create FS watcher: ", err)
+func (t *Renderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+	if t.debug {
+		t.ReloadTemplates()
 	}
 
-	go func() {
-		// used as intermediate storage for updated templates
-		updatedTemplates := map[string]bool{}
-		tick := time.NewTicker(time.Millisecond * 500)
-
-		for {
-			select {
-			case <-tick.C:
-				templates := make([]string, 0)
-				for tp, isUpdated := range updatedTemplates {
-					if isUpdated {
-						updatedTemplates[tp] = false
-						templates = append(templates, tp)
-					}
-				}
-				if len(templates) > 0 {
-					r.updateTemplates(templates...)
-				}
-
-			case event, ok := <-watcher.Events:
-				if !ok {
-					return
-				}
-				// as jetbrains IDE uses "safe write" it must also catch RENAME
-				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Rename == fsnotify.Rename {
-					// filters template files by extension
-					if strings.HasSuffix(event.Name, r.tempateExt) {
-						updatedTemplates[event.Name] = true
-					}
-				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					return
-				}
-				log.Print("Template directory watcher returned error: ", err)
-			}
-		}
-	}()
-
-	err = watcher.Add(r.whatchDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-// updateTemplates is a helper called by
-// a StartWatcher endless loop to reload updated templates
-func (r *Renderer) updateTemplates(tpl ...string) {
-	log.Print("Template has been reloaded:", tpl)
-	r.templates = template.Must(r.templates.ParseFiles(tpl...))
+	return t.template.ExecuteTemplate(w, name, data)
 }
 
 func NewRouter() *echo.Echo {
 	e := echo.New()
-	r := New()
-	r.LoadTemplates("views/*.html")
-	r.StartFSWatcher()
-	e.Renderer = r
 
-	/*
-		t := &Template{
-			templates: template.Must(template.ParseGlob("views/*.html")),
-		}
-		e.Renderer = t
-	*/
+	e.Renderer = NewRenderer("./views/*.html", true)
+
 	//g := e.Group("/admin")
 	//g := e.Group("/api")
 
