@@ -2,6 +2,7 @@ package kassiscore
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -238,7 +239,7 @@ func ImportFromFile(files []string) error {
 		//Get the file and open it
 		file, err := os.Open(filename)
 		if err != nil {
-			return fmt.Errorf("os: Unable to open file [%s]", filename)
+			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
 
 		//Close the file
