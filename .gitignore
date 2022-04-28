@@ -1,2 +1,3 @@
-./tools/archives/*
+tools/archives/*
 .idea
+bin

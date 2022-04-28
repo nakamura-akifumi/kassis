@@ -1,10 +1,15 @@
 package kassiscore
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"log"
+	"github.com/rs/zerolog/log"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,18 +70,21 @@ func SolrClearDocument(uriaddress string, corename string) error {
 	ctx := context.Background()
 	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
 	if err != nil {
-		log.Fatal("connection error.")
+		log.Fatal().
+			Err(err).
+			Msgf("Connection error.")
 	}
 	slr, err := solr.NewSingleClient(conn)
 	if err != nil {
-		log.Fatal("not create solr client")
+		log.Fatal().
+			Err(err).
+			Msgf("Not create solr client.")
 	}
 
 	_, err = slr.Clear(ctx)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
-	//fmt.Println(res)
 
 	return nil
 }
@@ -90,11 +98,15 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 	ctx := context.Background()
 	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
 	if err != nil {
-		log.Fatal("connection error.")
+		log.Fatal().
+			Err(err).
+			Msgf("Connection error.")
 	}
 	slr, err := solr.NewSingleClient(conn)
 	if err != nil {
-		log.Fatal("not create solr client")
+		log.Fatal().
+			Err(err).
+			Msgf("Not create solr client.")
 	}
 
 	opts := &solr.ReadOptions{Rows: 20, Debug: solr.DebugTypeQuery}
@@ -117,7 +129,7 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 	// We fire a search providing as input our Query
 	res, err := slr.Search(ctx, q)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	fmt.Printf("NumFound/FetchDocs:%d/%d\n", res.Data.NumFound, len(res.Data.Docs))
 
@@ -154,7 +166,7 @@ func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, med
 
 		_, err := slr.Create(ctx, &doc, &solr.WriteOptions{Commit: true})
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err)
 		}
 		fmt.Print(".")
 
@@ -202,7 +214,7 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 
 					_, err := slr.Create(ctx, &doc, &solr.WriteOptions{Commit: true})
 					if err != nil {
-						log.Fatal(err)
+						log.Fatal().Err(err)
 					}
 					fmt.Print(".")
 				}
@@ -222,12 +234,12 @@ func ImportFromFile(files []string) error {
 	ctx := context.Background()
 	conn, err := solr.NewConnection(solrserveruri, solrcorename, http.DefaultClient)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 
 	slr, err := solr.NewSingleClient(conn)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 
 	//Create connection with tika server
@@ -238,7 +250,7 @@ func ImportFromFile(files []string) error {
 		//Get the file and open it
 		file, err := os.Open(filename)
 		if err != nil {
-			return fmt.Errorf("os: Unable to open file [%s]", filename)
+			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
 
 		//Close the file
@@ -247,7 +259,7 @@ func ImportFromFile(files []string) error {
 		//Read the content from file
 		body, err := client.Parse(context.Background(), file)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err)
 		}
 
 		extname := filepath.Ext(filename)
@@ -256,7 +268,7 @@ func ImportFromFile(files []string) error {
 		// Load the HTML document
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err)
 		}
 
 		//fmt.Print(body)
@@ -275,4 +287,61 @@ func ImportFromFile(files []string) error {
 	fmt.Printf("success_count=%d\n", success_count)
 
 	return nil
+}
+
+// 内部関数
+func netFetch(uri string, filename string, cfg *KENVCONF) (*bytes.Buffer, error) {
+	bytebuf := new(bytes.Buffer)
+
+	// Getリクエスト
+	res, err := http.Get(uri)
+	if err != nil {
+		log.Err(err).Msg("error occurred")
+		return bytebuf, err
+	}
+
+	defer res.Body.Close()
+
+	log.Debug().Msgf("%s", res.Header)
+
+	// 読み取り
+	buf, _ := ioutil.ReadAll(res.Body)
+
+	// 文字コード判定
+	//det := chardet.NewTextDetector()
+	//detResult, _ := det.DetectBest(buf)
+
+	// 文字コード変換
+	bReader := bytes.NewReader(buf)
+	//reader, _ := charset.NewReaderLabel(detResult.Charset, bReader)
+
+	io.Copy(bytebuf, bReader)
+	ioutil.WriteFile(filename, bytebuf.Bytes(), os.ModePerm)
+
+	return bytebuf, nil
+}
+
+func WebCrawler(uri string, cfg *KENVCONF) (string, error) {
+
+	foldername := "foo"
+	str1 := url.PathEscape(uri)
+	filename := filepath.Join(cfg.ExtDir, foldername, str1)
+
+	log.Debug().Str("filename", filename)
+
+	byteBuf, err := netFetch(uri, filename, cfg)
+	if err != nil {
+		return "ng", err
+	}
+
+	// HTMLパース
+	//fmt.Println(bytebuf)
+	doc, _ := goquery.NewDocumentFromReader(byteBuf)
+
+	doc.Find("a").Each(func(_ int, s *goquery.Selection) {
+		uri, _ := s.Attr("href")
+		fmt.Println(uri)
+	})
+
+	return "ok", nil
 }

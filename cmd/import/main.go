@@ -12,6 +12,7 @@ import (
 
 func main() {
 
+	fmt.Printf("kassis document importer. version %s (Revison:%s)\n", kassiscore.VERSION, kassiscore.REVISION)
 	fmt.Println("Main function started")
 	/*
 		var (
