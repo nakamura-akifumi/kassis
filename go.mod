@@ -8,7 +8,7 @@ require (
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/mecenat/solr v1.3.2
 	github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	golang.org/x/net v0.0.0-20211020060615-d418f374d309
 )
 

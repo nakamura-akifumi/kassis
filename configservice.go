@@ -18,8 +18,10 @@ type KENVCONF struct {
 func LoadConfig() *KENVCONF {
 	fname, err := getConfigPath()
 	if err != nil {
-
+		log.Err(nil).Msg("no fname")
 	}
+
+	log.Info().Str("fname", fname)
 
 	cfg, _ := loadConfig(fname)
 	return cfg
@@ -33,6 +35,9 @@ func getConfigPath() (string, error) {
 
 	// 1. 環境変数(KASSISCONFIG)
 	home := os.Getenv("KASSISCONFIG")
+
+	log.Info().Msg(home)
+
 	if home != "" {
 		configFilename = os.Getenv("KASSISCONFIG")
 		_, err := os.Stat(configFilename)
@@ -44,6 +49,9 @@ func getConfigPath() (string, error) {
 	// 2. ./config.json
 	configDir, _ = os.Getwd()
 	configFilename = filepath.Join(configDir, "config.json")
+
+	log.Info().Msg(configFilename)
+
 	_, err := os.Stat(configFilename)
 	if err == nil {
 		return configFilename, nil

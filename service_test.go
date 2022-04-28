@@ -2,6 +2,8 @@ package kassiscore
 
 import (
 	"encoding/json"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
@@ -122,4 +124,20 @@ func TestImportFromFile(t *testing.T) {
 		t.Fatal("failed test")
 	}
 
+}
+
+func TestWebCrawlerInvalidPath(t *testing.T) {
+
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	t.Setenv("KASSISCONFIG", "./config.json")
+
+	cfg := LoadConfig()
+	result, err := WebCrawler("", cfg)
+	assert.Contains(t, result, "ng")
+	assert.EqualError(t, err, "Get \"\": unsupported protocol scheme \"\"")
+
+	result, err = WebCrawler("http://www.example.com", cfg)
+	assert.Contains(t, result, "ok")
+	assert.NoError(t, err)
 }
