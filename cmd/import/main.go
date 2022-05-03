@@ -29,6 +29,7 @@ func main() {
 	files := []string{}
 
 	if f, err := os.Stat(flag.Arg(0)); os.IsNotExist(err) || f.IsDir() {
+		// 指定の引数は存在するディレクトリ？
 		if f, err := os.Stat(flag.Arg(0)); os.IsNotExist(err) || !f.IsDir() {
 			fmt.Printf("Error: No such file or directory (%s)\n", flag.Arg(0))
 			os.Exit(2)

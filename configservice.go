@@ -1,18 +1,136 @@
 package kassiscore
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/go-tika/tika"
+	"github.com/mecenat/solr"
 	"github.com/rs/zerolog/log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 )
 
-// 設定構造体
+type FileProcessor struct {
+	Filenamematch    string   `json:"filenamematch"`
+	Excludesheetname []string `json:"excludesheetname"`
+}
+
 type KENVCONF struct {
-	ExtDir string `json:'extDir'`
+	ExtDir string `json:"extDir"`
+	Solr   struct {
+		Serveruri string `json:"serveruri"`
+		Corename  string `json:"corename"`
+	} `json:"solr"`
+	Tika struct {
+		Serveruri string `json:"serveruri"`
+	} `json:"tika"`
+	Files []FileProcessor `json:"files"`
+}
+
+//Child json.RawMessage
+
+func GenerateDefaultConfigSet() {
+
+	cfg := new(KENVCONF)
+	cfg.Solr.Serveruri = "http://localhost:8983"
+	cfg.Solr.Corename = "kassiscore"
+	cfg.Tika.Serveruri = "http://localhost:9998"
+	cfg.ExtDir = "ext"
+
+	var fps []FileProcessor
+	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})
+	cfg.Files = fps
+
+	configDir, _ := os.Getwd()
+	configFilename := filepath.Join(configDir, "config.json")
+
+	if _, err := os.Stat(configFilename); err == nil {
+		fmt.Println("すでに同名でファイルが存在します。上書きしますか？(Y)", configFilename)
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			if scanner.Text() == "Y" {
+				break
+			}
+		}
+	}
+
+	f, err := os.Create(configFilename)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "    ")
+	err = enc.Encode(cfg)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+	fmt.Printf("generate default configset path:%s", configFilename)
+
+}
+
+func CheckConfigAndConnections() (string, error) {
+
+	// step1
+	fmt.Println("Check config path (config.json)")
+	filename, err := getConfigPath()
+	if err != nil {
+		fmt.Printf("ng: config file ng\n")
+		return "", err
+	}
+
+	fmt.Printf("ok: config file (Path:%s)\n", filename)
+
+	cfg, _ := loadConfig(filename)
+	fmt.Printf("ok: config file load and parse\n")
+
+	// step2 : check ext folder
+	extdirname, _ := os.Getwd()
+	extdirname = filepath.Join(extdirname, cfg.ExtDir)
+
+	f, err := os.Stat(extdirname)
+	if err == nil && f.IsDir() {
+		fmt.Printf("ok: ext dirname %s\n", extdirname)
+	} else {
+		fmt.Printf("ng: ext dirname %s\n", extdirname)
+	}
+
+	// step3 : check solr
+	ctx := context.Background()
+	conn, err := solr.NewConnection(cfg.Solr.Serveruri, cfg.Solr.Corename, http.DefaultClient)
+	if err != nil {
+		fmt.Printf("ng: Solr connection error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+	} else {
+		slr, err := solr.NewSingleClient(conn)
+		if err != nil {
+			fmt.Printf("ng: Solr connection error (2) create client Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+		} else {
+			err = slr.Ping(ctx)
+			if err != nil {
+				fmt.Printf("ng: Solr ping:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+			} else {
+				fmt.Printf("ok: Solr ping:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+			}
+		}
+	}
+
+	// step4 : check tika
+	client := tika.NewClient(nil, cfg.Tika.Serveruri)
+	if client != nil {
+		fmt.Printf("ng: Tika client %s\n", cfg.Tika.Serveruri)
+	} else {
+		fmt.Printf("ok: Tika client %s\n", cfg.Tika.Serveruri)
+	}
+
+	return "", nil
 }
 
 func LoadConfig() *KENVCONF {
