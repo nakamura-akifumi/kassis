@@ -1,3 +1,18 @@
 {
-  "extDir": "ext"
+    "extDir": "ext",
+    "solr": {
+        "serveruri": "http://localhost:8983",
+        "corename": "kassiscore"
+    },
+    "tika": {
+        "serveruri": "http://localhost:9998"
+    },
+    "files": [
+        {
+            "filenamematch": "*.xlsx",
+            "excludesheetname": [
+                "目次"
+            ]
+        }
+    ]
 }

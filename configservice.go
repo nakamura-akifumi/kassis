@@ -9,11 +9,15 @@ import (
 	"github.com/google/go-tika/tika"
 	"github.com/mecenat/solr"
 	"github.com/rs/zerolog/log"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
+
+var ConfigFileName string = "config.json"
 
 type FileProcessor struct {
 	Filenamematch    string   `json:"filenamematch"`
@@ -77,6 +81,74 @@ func GenerateDefaultConfigSet() {
 
 }
 
+func SetupSolr() {
+	fmt.Println("start setup solr.")
+
+	filename, err := getConfigPath()
+	if err != nil {
+		fmt.Printf("ng: config file ng\n")
+		return
+	}
+	cfg, _ := loadConfig(filename)
+
+	fmt.Printf("SolrServerPath:%s Corename:%s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+	/*
+		$ ./bin/solr create_core -c kassiscore -d _default
+		$ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
+		$ curl -X POST -H 'Content-type:application/json' --data-binary @tools/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
+	*/
+	ctx := context.Background()
+	// Initialize a new solr Core Admin API
+	ca, err := solr.NewCoreAdmin(ctx, cfg.Solr.Serveruri, http.DefaultClient)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+
+	//res, err := ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{Config: "conf/solrconfig.xml"})
+	res, err := ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{})
+	if err != nil {
+		log.Err(err)
+		return
+	}
+	res = res
+
+	schemafilename, _ := os.Getwd()
+	schemafilename = filepath.Join(schemafilename, "tools", "kassis-solr-schema.json")
+
+	bytes, err := ioutil.ReadFile(schemafilename)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(bytes))
+
+	url := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"
+	req, err := http.NewRequest(
+		"POST",
+		url,
+		strings.NewReader(string(bytes)),
+	)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+
+	log.Debug().Msgf("%s", req.Header)
+
+	// Content-Type 設定
+	req.Header.Set("Content-Type", "Content-type:application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+	defer resp.Body.Close()
+
+}
+
 func CheckConfigAndConnections() (string, error) {
 
 	// step1
@@ -118,6 +190,8 @@ func CheckConfigAndConnections() (string, error) {
 				fmt.Printf("ng: Solr ping:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 			} else {
 				fmt.Printf("ok: Solr ping:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+
+				//TODO: core and schema check
 			}
 		}
 	}
@@ -166,7 +240,7 @@ func getConfigPath() (string, error) {
 
 	// 2. ./config.json
 	configDir, _ = os.Getwd()
-	configFilename = filepath.Join(configDir, "config.json")
+	configFilename = filepath.Join(configDir, ConfigFileName)
 
 	log.Info().Msg(configFilename)
 
@@ -177,7 +251,7 @@ func getConfigPath() (string, error) {
 
 	// 3. ./config/config.json
 	configDir, _ = os.Getwd()
-	configFilename = filepath.Join(configDir, "config", "config.json")
+	configFilename = filepath.Join(configDir, "config", ConfigFileName)
 	_, err = os.Stat(configFilename)
 	if err == nil {
 		return configFilename, nil
@@ -188,9 +262,9 @@ func getConfigPath() (string, error) {
 	home = os.Getenv("HOME")
 	if home == "" && runtime.GOOS == "windows" {
 		configDir = os.Getenv("APPDATA")
-		configDir = filepath.Join(configDir, "kassis", "config.json")
+		configDir = filepath.Join(configDir, "kassis", ConfigFileName)
 	} else {
-		configDir = filepath.Join(home, ".config", "kassis", "config.json")
+		configDir = filepath.Join(home, ".config", "kassis", ConfigFileName)
 	}
 	_, err = os.Stat(configFilename)
 	if err == nil {
