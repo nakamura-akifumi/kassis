@@ -1,18 +1,21 @@
 package main
 
 import (
+	"flag"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/nakamura-akifumi/kassis"
+	"github.com/rs/zerolog/log"
 	"html/template"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 func logFormat() string {
-	var format string
-	format += "time:${time_rfc3339}\t"
+
+	format := "time:${time_rfc3339}\t"
 	format += "host:${remote_ip}\t"
 	format += "forwardedfor:${header:x-forwarded-for}\t"
 	format += "req:-\t"
@@ -30,6 +33,7 @@ func logFormat() string {
 	format += "reqtime_human:${latency_human}\t"
 	format += "x-request-id:${id}\t"
 	format += "host:${host}\n"
+
 	return format
 }
 
@@ -64,7 +68,10 @@ func (t *Renderer) Render(w io.Writer, name string, data interface{}, c echo.Con
 func NewRouter() *echo.Echo {
 	e := echo.New()
 
-	e.Renderer = NewRenderer("./views/*.html", true)
+	templateDir, _ := os.Getwd()
+	templateFiles := filepath.Join(templateDir, "web", "views", "*.html")
+
+	e.Renderer = NewRenderer(templateFiles, true)
 
 	//g := e.Group("/admin")
 	//g := e.Group("/api")
@@ -82,9 +89,15 @@ func NewRouter() *echo.Echo {
 }
 
 func main() {
+	log.Info().Msgf("Start WebServer: version %s  (Revison:%s)\n", kassiscore.VERSION, kassiscore.REVISION)
+	cfg := kassiscore.LoadConfig()
+
+	listenstr := flag.String("listen", cfg.WebServer.Listen, "listrn address and port")
+	flag.Parse()
+
 	router := NewRouter()
 	router.HideBanner = true
-	router.HidePort = true
+	router.HidePort = false
 
 	logger := middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format: logFormat(),
@@ -92,5 +105,5 @@ func main() {
 	})
 	router.Use(logger)
 	router.Use(middleware.Recover())
-	router.Logger.Fatal(router.Start(":1323"))
+	router.Logger.Fatal(router.Start(*listenstr))
 }

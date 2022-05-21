@@ -130,6 +130,7 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 	res, err := slr.Search(ctx, q)
 	if err != nil {
 		log.Fatal().Err(err)
+		return nil, err
 	}
 	fmt.Printf("NumFound/FetchDocs:%d/%d\n", res.Data.NumFound, len(res.Data.Docs))
 
@@ -227,6 +228,7 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 }
 
 func ImportFromFile(files []string) error {
+	//TODO: config を見るようにする
 	tikaserveruri := "http://localhost:9998"
 	solrserveruri := "http://localhost:8983"
 	solrcorename := "kassiscore"

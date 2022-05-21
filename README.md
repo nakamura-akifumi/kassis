@@ -49,12 +49,16 @@ $ go run cmd/import/main.go
 実行環境に加えて以下のものを準備する必要がある
 
 - Go 1.17以上（開発者は1.17.8で実装と単体試験）
-
-## Windowsの場合
-
+  (windowsで実行する場合は以下のツールが必要)
 - Git Bash
 - Make for windows
 http://gnuwin32.sourceforge.net/packages/make.htm
+
+## Windows以外の場合
+
+```
+make  
+```
 
 ## テスト
 
@@ -65,12 +69,12 @@ go test github.com/nakamura-akifumi/kassis/...
 
 ### 実行ファイルをテスト
 
-（あとで考える）
-
-# LICENSE
-
-MIT
+（あとで考える。自動テストしたい）
 
 # Author, Contributor
 
 Akifumi NAKAMURA (@tmpz84)
+
+# LICENSE
+
+MIT

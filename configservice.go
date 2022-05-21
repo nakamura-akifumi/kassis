@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-var ConfigFileName string = "config.json"
+var ConfigFileName = "config.json"
 
 type FileProcessor struct {
 	Filenamematch    string   `json:"filenamematch"`
@@ -25,8 +25,11 @@ type FileProcessor struct {
 }
 
 type KENVCONF struct {
-	ExtDir string `json:"extDir"`
-	Solr   struct {
+	ExtDir    string `json:"extDir"`
+	WebServer struct {
+		Listen string `json:"listen"`
+	} `json:"web"`
+	Solr struct {
 		Serveruri string `json:"serveruri"`
 		Corename  string `json:"corename"`
 	} `json:"solr"`
@@ -44,6 +47,7 @@ func GenerateDefaultConfigSet() {
 	cfg.Solr.Serveruri = "http://localhost:8983"
 	cfg.Solr.Corename = "kassiscore"
 	cfg.Tika.Serveruri = "http://localhost:9998"
+	cfg.WebServer.Listen = ":1323"
 	cfg.ExtDir = "ext"
 
 	var fps []FileProcessor
@@ -91,12 +95,14 @@ func SetupSolr() {
 	}
 	cfg, _ := loadConfig(filename)
 
-	fmt.Printf("SolrServerPath:%s Corename:%s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+	fmt.Printf("SolrServerPath:%s corename:%s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	/*
 		$ ./bin/solr create_core -c kassiscore -d _default
 		$ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
 		$ curl -X POST -H 'Content-type:application/json' --data-binary @tools/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
 	*/
+
+	fmt.Printf("New connection\n")
 	ctx := context.Background()
 	// Initialize a new solr Core Admin API
 	ca, err := solr.NewCoreAdmin(ctx, cfg.Solr.Serveruri, http.DefaultClient)
@@ -105,22 +111,28 @@ func SetupSolr() {
 		return
 	}
 
+	fmt.Printf("create core\n")
 	//res, err := ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{Config: "conf/solrconfig.xml"})
-	res, err := ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{})
+	_, err = ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{})
 	if err != nil {
+		//TODO: delete core
+		fmt.Printf("%s", err)
 		log.Err(err)
 		return
 	}
-	res = res
+
+	fmt.Printf("read schema file\n")
 
 	schemafilename, _ := os.Getwd()
 	schemafilename = filepath.Join(schemafilename, "tools", "kassis-solr-schema.json")
 
 	bytes, err := ioutil.ReadFile(schemafilename)
 	if err != nil {
-		panic(err)
+		log.Err(err)
+		return
 	}
 
+	fmt.Printf("read schema file ok")
 	fmt.Println(string(bytes))
 
 	url := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"

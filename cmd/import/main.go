@@ -60,8 +60,9 @@ func main() {
 		files = append(files, flag.Arg(0))
 	}
 
-	fmt.Print(files)
-	fmt.Print("\n")
+	//fmt.Print(files)
+	//fmt.Print("\n")
+	fmt.Printf("files:%d\n", len(files))
 
 	err := kassiscore.ImportFromFile(files)
 	if err != nil {

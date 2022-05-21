@@ -1,5 +1,8 @@
 {
     "extDir": "ext",
+    "web": {
+        "listen": ":1323"
+    },
     "solr": {
         "serveruri": "http://localhost:8983",
         "corename": "kassiscore"
