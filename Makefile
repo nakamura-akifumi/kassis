@@ -57,11 +57,8 @@ build: $(BINARIES)
 # お掃除
 .PHONY: clean
 clean:
-	@$(RM) $(GOPB_FILES) $(BINARIES) $(BINDIR)/protoc-gen-go
+	@$(RM) $(GOPB_FILES) $(BINARIES)
 
 # 実ビルドタスク
 $(BINARIES): $(GO_FILES) $(GOPB_FILES) VERSION .git/HEAD
 	@go build -o $@ $(GO_BUILD) $(@:$(BINDIR)/%=$(ROOT_PACKAGE)/cmd/%)
-
-$(BINDIR)/protoc-gen-go: go.sum
-	@go build -o $@ google.golang.org/protobuf/cmd/protoc-gen-go
