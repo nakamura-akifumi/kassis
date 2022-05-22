@@ -138,6 +138,49 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 }
 
 /*
+ * MS WORD(.docx)形式のファイルの索引を作る
+ * 1ファイルで Solr の1ドキュメントとする
+ */
+func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
+
+	fmt.Println("docx")
+
+	var cells []string
+
+	// Find the review items
+	doc.Find("p").Each(func(rindex int, pageselection *goquery.Selection) {
+		// For each item found
+		text := strings.Replace(pageselection.Text(), "\n", " ", -1)
+		text = strings.Replace(text, " ", "", -1)
+		//text = rep_space.ReplaceAllString(text, "")
+
+		//for debug
+		//fmt.Println(text)
+
+		cells = append(cells, text)
+	})
+
+	basename := filepath.Base(filename)
+	foldername := filepath.Dir(filename)
+
+	id := fmt.Sprintf("%s%d", filename, 0)
+	wr := Material{ID: id, Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+
+	//fmt.Printf("%+v\n", wr)
+	//fmt.Println("try create to solr")
+
+	_, err := slr.Create(ctx, &wr, &solr.WriteOptions{Commit: true})
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	fmt.Print(".")
+
+	//fmt.Println(res.Header)
+
+	return "ok"
+}
+
+/*
  * PDF(.pdf)形式のファイルの索引を作る
  * PDFの1ページで Solr の1ドキュメントとする
  */
@@ -249,6 +292,7 @@ func ImportFromFile(files []string) error {
 
 	success_count := 0
 	for _, filename := range files {
+		fmt.Printf("%d/%d filename:%s\n", success_count+1, len(files), filename)
 		//Get the file and open it
 		file, err := os.Open(filename)
 		if err != nil {
@@ -273,16 +317,21 @@ func ImportFromFile(files []string) error {
 			log.Fatal().Err(err)
 		}
 
+		//for debug
 		//fmt.Print(body)
 
+		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {
 		case ".xlsx":
 			GenerateExcelIndex(ctx, slr, filename, mediatype, doc)
 		case ".pdf":
 			GeneratePdfIndex(ctx, slr, filename, mediatype, doc)
+		case ".docx":
+			GenerateWordxIndex(ctx, slr, filename, mediatype, doc)
 		default:
-			fmt.Printf("skip [%s]\n", filename)
+			fmt.Printf("\nunknown format: skip [%s]\n", filename)
 		}
+		fmt.Printf("\n")
 		success_count++
 	}
 
