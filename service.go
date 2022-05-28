@@ -36,9 +36,10 @@ type KWRIF struct {
 	Materials       []Material
 }
 
-const MEDIATYPE_EXCEL string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-const MEDIATYPE_PDF string = "application/pdf"
-const MEDIATYPE_TEXT string = "text/plain"
+const CONTENTTYPE_EXCEL string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+const CONTENTTYPE_PDF string = "application/pdf"
+const CONTENTTYPE_TEXT string = "text/plain"
+const CONTENTTYPE_WORD string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 //配列の中に特定の文字列が含まれるかを返す
 func arrayContains(arr []string, str string) bool {
@@ -51,18 +52,18 @@ func arrayContains(arr []string, str string) bool {
 }
 
 func ExtnameToMediaType(extname string) string {
-	mediatype := "File"
+	ct := "application/octet-stream"
 	switch extname {
 	case ".xlsx":
-		mediatype = MEDIATYPE_EXCEL
+		ct = CONTENTTYPE_EXCEL
 	case ".pdf":
-		mediatype = MEDIATYPE_PDF
+		ct = CONTENTTYPE_PDF
 	case ".txt":
-		mediatype = MEDIATYPE_TEXT
-	default:
-		mediatype = "File"
+		ct = CONTENTTYPE_TEXT
+	case ".docx":
+		ct = CONTENTTYPE_WORD
 	}
-	return mediatype
+	return ct
 }
 
 func SolrClearDocument(uriaddress string, corename string) error {
@@ -138,12 +139,54 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 }
 
 /*
+ * テキスト形式のファイルの索引を作る
+ * 1ファイルで Solr の1ドキュメントとする
+ */
+func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
+
+	fmt.Println("text")
+
+	var cells []string
+
+	// Find the review items
+	doc.Find("p").Each(func(rindex int, pselection *goquery.Selection) {
+		// For each item found
+		text := strings.ReplaceAll(pselection.Text(), "&#13;", " ")
+		text = strings.ReplaceAll(text, " ", "")
+
+		//for debug
+		//fmt.Println(text)
+
+		cells = append(cells, text)
+	})
+
+	basename := filepath.Base(filename)
+	foldername := filepath.Dir(filename)
+
+	id := fmt.Sprintf("%s%d", filename, 0)
+	wr := Material{ID: id, Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+
+	//fmt.Printf("%+v\n", wr)
+	//fmt.Println("try create to solr")
+
+	_, err := slr.Create(ctx, &wr, &solr.WriteOptions{Commit: true})
+	if err != nil {
+		log.Fatal().Err(err)
+	}
+	fmt.Print(".")
+
+	//fmt.Println(res.Header)
+
+	return "ok"
+}
+
+/*
  * MS WORD(.docx)形式のファイルの索引を作る
  * 1ファイルで Solr の1ドキュメントとする
  */
 func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
 
-	fmt.Println("docx")
+	//fmt.Println("docx")
 
 	var cells []string
 
@@ -185,9 +228,6 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
  * PDFの1ページで Solr の1ドキュメントとする
  */
 func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
-
-	fmt.Println("pdf")
-	//rep_space := regexp.MustCompile(`/\s{2,}/`)
 
 	// Find the review items
 	doc.Find("div.page").Each(func(rindex int, pageselection *goquery.Selection) {
@@ -288,7 +328,7 @@ func ImportFromFile(files []string) error {
 	}
 
 	//Create connection with tika server
-	client := tika.NewClient(nil, tikaserveruri)
+	tikaclient := tika.NewClient(nil, tikaserveruri)
 
 	success_count := 0
 	for _, filename := range files {
@@ -302,14 +342,16 @@ func ImportFromFile(files []string) error {
 		//Close the file
 		defer file.Close()
 
+		extname := filepath.Ext(filename)
+		contentType := ExtnameToMediaType(extname)
+		//("Content-Type", "text/csv")
+		header := http.Header{}
+		header.Add("Content-Type", contentType)
 		//Read the content from file
-		body, err := client.Parse(context.Background(), file)
+		body, err := tikaclient.ParseWithHeader(context.Background(), file, header)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
-
-		extname := filepath.Ext(filename)
-		mediatype := ExtnameToMediaType(extname)
 
 		// Load the HTML document
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
@@ -323,11 +365,13 @@ func ImportFromFile(files []string) error {
 		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {
 		case ".xlsx":
-			GenerateExcelIndex(ctx, slr, filename, mediatype, doc)
+			GenerateExcelIndex(ctx, slr, filename, contentType, doc)
 		case ".pdf":
-			GeneratePdfIndex(ctx, slr, filename, mediatype, doc)
+			GeneratePdfIndex(ctx, slr, filename, contentType, doc)
 		case ".docx":
-			GenerateWordxIndex(ctx, slr, filename, mediatype, doc)
+			GenerateWordxIndex(ctx, slr, filename, contentType, doc)
+		case ".txt":
+			GenerateTextIndex(ctx, slr, filename, contentType, doc)
 		default:
 			fmt.Printf("\nunknown format: skip [%s]\n", filename)
 		}
