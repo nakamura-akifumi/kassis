@@ -21,7 +21,7 @@ func TestExtnameToMediaTypeSuccess(t *testing.T) {
 	}
 
 	result = ExtnameToMediaType(".xlsx")
-	if result != MEDIATYPE_EXCEL {
+	if result != CONTENTTYPE_EXCEL {
 		t.Fatal("failed test")
 	}
 }
