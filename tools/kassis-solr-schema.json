@@ -7,6 +7,15 @@
         "required":"true",
         "multiValued":"false"
     },
+    ,
+    "add-field" : {
+        "name":"objecttype",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"true",
+        "multiValued":"false"
+    },
     "add-field" : {
         "name":"foldername",
         "type":"string",

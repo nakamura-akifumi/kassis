@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-tika/tika"
 	"github.com/mecenat/solr"
 	"github.com/rs/zerolog/log"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -30,6 +31,7 @@ type KENVCONF struct {
 		Listen string `json:"listen"`
 	} `json:"web"`
 	Solr struct {
+		Home      string `json:"home"`
 		Serveruri string `json:"serveruri"`
 		Corename  string `json:"corename"`
 	} `json:"solr"`
@@ -50,6 +52,10 @@ func GenerateDefaultConfigSet() {
 	cfg.WebServer.Listen = ":1323"
 	cfg.ExtDir = "ext"
 
+	solrhome, _ := os.Getwd()
+	solrhome = filepath.Join(solrhome, "tools", "app", "solr-8.11.1")
+	cfg.Solr.Home = solrhome
+
 	var fps []FileProcessor
 	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})
 	cfg.Files = fps
@@ -58,7 +64,7 @@ func GenerateDefaultConfigSet() {
 	configFilename := filepath.Join(configDir, "config.json")
 
 	if _, err := os.Stat(configFilename); err == nil {
-		fmt.Println("すでに同名でファイルが存在します。上書きしますか？(Y)", configFilename)
+		fmt.Println("overwrite?(Y/N)", configFilename)
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			if scanner.Text() == "Y" {
@@ -97,12 +103,14 @@ func SetupSolr() {
 
 	fmt.Printf("SolrServerPath:%s corename:%s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	/*
-		$ ./bin/solr create_core -c kassiscore -d _default
-		$ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
-		$ curl -X POST -H 'Content-type:application/json' --data-binary @tools/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
+			$ ./bin/solr delete -c kassiscore
+		 cp -r server/solr/configsets/_default server/solr/core1
+			$ ./bin/solr create_core -c kassiscore -d _default
+			$ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
+			$ curl -X POST -H 'Content-type:application/json' --data-binary @tools/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
 	*/
 
-	fmt.Printf("New connection\n")
+	fmt.Printf("connect to solr\n")
 	ctx := context.Background()
 	// Initialize a new solr Core Admin API
 	ca, err := solr.NewCoreAdmin(ctx, cfg.Solr.Serveruri, http.DefaultClient)
@@ -111,9 +119,22 @@ func SetupSolr() {
 		return
 	}
 
+	//TODO: core exist?
+
+	// cp -r server/solr/configsets/_default server/solr/<corename>
+	fmt.Printf("copy solr configset\n")
+	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
+	destdir := filepath.Join(cfg.Solr.Home, "server", "solr", cfg.Solr.Corename)
+	err = CopyDirectory(defaultsolrconfigset, destdir)
+	if err != nil {
+		fmt.Printf("%s", err)
+		log.Err(err)
+		return
+	}
+
 	fmt.Printf("create core\n")
 	//res, err := ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{Config: "conf/solrconfig.xml"})
-	_, err = ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{})
+	_, err = ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{InstanceDir: cfg.Solr.Corename})
 	if err != nil {
 		//TODO: delete core
 		fmt.Printf("%s", err)
@@ -132,9 +153,8 @@ func SetupSolr() {
 		return
 	}
 
-	fmt.Printf("read schema file ok")
-	fmt.Println(string(bytes))
-
+	//fmt.Println(string(bytes))
+	fmt.Println("Post schema file")
 	url := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"
 	req, err := http.NewRequest(
 		"POST",
@@ -296,4 +316,108 @@ func loadConfig(fname string) (*KENVCONF, error) {
 	var cfg KENVCONF
 	err = json.NewDecoder(f).Decode(&cfg)
 	return &cfg, err
+}
+
+func CopyDirectory(scrDir, dest string) error {
+	entries, err := ioutil.ReadDir(scrDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		sourcePath := filepath.Join(scrDir, entry.Name())
+		destPath := filepath.Join(dest, entry.Name())
+
+		fileInfo, err := os.Stat(sourcePath)
+		if err != nil {
+			return err
+		}
+
+		// for linux
+		/*
+			stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+			if !ok {
+				return fmt.Errorf("failed to get raw syscall.Stat_t data for '%s'", sourcePath)
+			}
+		*/
+		switch fileInfo.Mode() & os.ModeType {
+		case os.ModeDir:
+			if err := CreateIfNotExists(destPath, 0755); err != nil {
+				return err
+			}
+			if err := CopyDirectory(sourcePath, destPath); err != nil {
+				return err
+			}
+		case os.ModeSymlink:
+			if err := CopySymLink(sourcePath, destPath); err != nil {
+				return err
+			}
+		default:
+			if err := Copy(sourcePath, destPath); err != nil {
+				return err
+			}
+		}
+		// for unix
+		/*
+			if err := os.Lchown(destPath, int(stat.Uid), int(stat.Gid)); err != nil {
+				return err
+			}
+			isSymlink := entry.Mode()&os.ModeSymlink != 0
+			if !isSymlink {
+				if err := os.Chmod(destPath, entry.Mode()); err != nil {
+					return err
+				}
+			}
+		*/
+	}
+	return nil
+}
+
+func Copy(srcFile, dstFile string) error {
+	out, err := os.Create(dstFile)
+	if err != nil {
+		return err
+	}
+
+	defer out.Close()
+
+	in, err := os.Open(srcFile)
+	defer in.Close()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Exists(filePath string) bool {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
+
+func CreateIfNotExists(dir string, perm os.FileMode) error {
+	if Exists(dir) {
+		return nil
+	}
+
+	if err := os.MkdirAll(dir, perm); err != nil {
+		return fmt.Errorf("failed to create directory: '%s', error: '%s'", dir, err.Error())
+	}
+
+	return nil
+}
+
+func CopySymLink(source, dest string) error {
+	link, err := os.Readlink(source)
+	if err != nil {
+		return err
+	}
+	return os.Symlink(link, dest)
 }

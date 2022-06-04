@@ -21,6 +21,7 @@ import (
 
 type Material struct {
 	ID         string   `json:"id"`
+	ObjectType string   `json:"objecttype"`
 	Foldername string   `json:"foldername"`
 	Filename   string   `json:"filename"`
 	Sheetname  string   `json:"sheetname"`
@@ -164,7 +165,7 @@ func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, me
 	foldername := filepath.Dir(filename)
 
 	id := fmt.Sprintf("%s%d", filename, 0)
-	wr := Material{ID: id, Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
 
 	//fmt.Printf("%+v\n", wr)
 	//fmt.Println("try create to solr")
@@ -207,7 +208,7 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
 	foldername := filepath.Dir(filename)
 
 	id := fmt.Sprintf("%s%d", filename, 0)
-	wr := Material{ID: id, Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
 
 	//fmt.Printf("%+v\n", wr)
 	//fmt.Println("try create to solr")
@@ -243,7 +244,7 @@ func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, med
 		foldername := filepath.Dir(filename)
 
 		id := fmt.Sprintf("%s%d", filename, rindex)
-		doc := Material{ID: id, Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+		doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
 
 		//fmt.Printf("%+v\n", doc)
 		//fmt.Println("try create to solr")
@@ -291,7 +292,7 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 					basename := filepath.Base(filename)
 					foldername := filepath.Dir(filename)
 
-					doc := Material{ID: id, Mediatype: mediatype, Foldername: foldername, Filename: basename, Sheetname: sheetname, Cellvalues: cells}
+					doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Sheetname: sheetname, Cellvalues: cells}
 
 					//fmt.Printf("%+v\n", doc)
 					//fmt.Println("try create to solr")
@@ -344,7 +345,6 @@ func ImportFromFile(files []string) error {
 
 		extname := filepath.Ext(filename)
 		contentType := ExtnameToMediaType(extname)
-		//("Content-Type", "text/csv")
 		header := http.Header{}
 		header.Add("Content-Type", contentType)
 		//Read the content from file
