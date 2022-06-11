@@ -17,35 +17,39 @@
         <div class="container">
             <div class="row">
                 <div class="two columns"><p>kassis</p></div>
-                <div class="ten columns text-right"><p>alert ログイン</p></div>
+                <div class="ten columns text-right"><p>ログイン</p></div>
             </div>
         </div>
     </header>
 
-    <div class="section">
+    <div class="app">
         <div class="container">
             <div class="row">
-                <div class="four columns">
+                <div class="twelve columns">
                     <form action="/materials" method="GET">
-                        <input class="u-pull-left" type="search" placeholder="かんたん検索" name="qs" id="qs" maxlength="80">
-                        <input class="button-primary" type="button" value="送信">
+                        <input class="u-cf uif" type="search" placeholder="フリーワード" name="qs" id="qs">
+                        <button class="ubf" type="submit" id="searchButton"></button>
                     </form>
                 </div>
-                <div class="eight columns">
-                    検索結果
-                   <table class="list">
-                        <tr class="row">
+
+                <div class="twelve columns">
+                    検索結果一覧：Found:{{.NumFound}}
+                    <table class="u-full-width">
+                        <thead>
+                        <tr>
                             <th>ID</th>
-                            <th>内容</th>
+                            <th>コンテンツ</th>
                         </tr>
+                        </thead>
+                        <tbody>
                         {{ range .Materials }}
-                        <tr class="row">
+                        <tr>
                             <td>{{.ID}}</td>
                             <td>{{.Cellvalues}}</td>
                         </tr>
                         {{ end }}
+                        </tbody>
                     </table>
-
                 </div>
             </div>
         </div>
