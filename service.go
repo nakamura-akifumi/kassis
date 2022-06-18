@@ -1,6 +1,7 @@
 package kassiscore
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -30,10 +31,18 @@ type Material struct {
 }
 
 // Web用のレスポンス構造体
+type KWQIF struct {
+	QueryString  string
+	QueryMessage string
+	NumOfPage    int64
+	Curretpage   int64
+	Lastpage     int64
+}
 type KWRIF struct {
 	NumFound        int64
 	ResponseStatus  string
 	ResponseMessage string
+	KQ              KWQIF
 	Materials       []Material
 }
 
@@ -69,6 +78,17 @@ func ExtnameToMediaType(extname string) string {
 
 func SolrClearDocument(uriaddress string, corename string) error {
 
+	fmt.Println("clear documents?(Y/N)")
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		if scanner.Text() == "Y" {
+			break
+		}
+		if scanner.Text() == "N" {
+			return nil
+		}
+	}
+
 	ctx := context.Background()
 	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
 	if err != nil {
@@ -96,19 +116,21 @@ func SolrClearDocument(uriaddress string, corename string) error {
 //引数要改良
 //solrに接続する箇所も改良。毎回接続するのは問題。
 func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, error) {
-
 	ctx := context.Background()
 	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Msgf("Connection error.")
+		return nil, err
 	}
+
 	slr, err := solr.NewSingleClient(conn)
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Msgf("Not create solr client.")
+		return nil, err
 	}
 
 	opts := &solr.ReadOptions{Rows: 20, Debug: solr.DebugTypeQuery}
@@ -128,12 +150,14 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 
 	//fmt.Println(q.String())
 
-	// We fire a search providing as input our Query
+	//TODO: coreが無い場合にエラーに変なエラーになる（要調査）
 	res, err := slr.Search(ctx, q)
 	if err != nil {
+		fmt.Println("debug7")
 		log.Fatal().Err(err)
 		return nil, err
 	}
+
 	fmt.Printf("NumFound/FetchDocs:%d/%d\n", res.Data.NumFound, len(res.Data.Docs))
 
 	return res, nil
@@ -144,8 +168,6 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
  * 1ファイルで Solr の1ドキュメントとする
  */
 func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
-
-	fmt.Println("text")
 
 	var cells []string
 
@@ -311,21 +333,19 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 	return "ok"
 }
 
-func ImportFromFile(files []string) error {
-	//TODO: config を見るようにする
-	tikaserveruri := "http://localhost:9998"
-	solrserveruri := "http://localhost:8983"
-	solrcorename := "kassiscore"
+func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, solrcorename string) error {
 
 	ctx := context.Background()
 	conn, err := solr.NewConnection(solrserveruri, solrcorename, http.DefaultClient)
 	if err != nil {
 		log.Fatal().Err(err)
+		return err
 	}
 
 	slr, err := solr.NewSingleClient(conn)
 	if err != nil {
 		log.Fatal().Err(err)
+		return err
 	}
 
 	//Create connection with tika server
@@ -360,7 +380,7 @@ func ImportFromFile(files []string) error {
 		}
 
 		//for debug
-		//fmt.Print(body)
+		fmt.Print(body)
 
 		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {

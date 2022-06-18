@@ -14,11 +14,6 @@ func main() {
 
 	fmt.Printf("kassis document importer. version %s (Revison:%s)\n", kassiscore.VERSION, kassiscore.REVISION)
 	fmt.Println("Main function started")
-	/*
-		var (
-			targetfilename = flag.String("f", "target filename or foldername.", "Message")
-		)
-	*/
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
@@ -64,7 +59,8 @@ func main() {
 	//fmt.Print("\n")
 	fmt.Printf("files:%d\n", len(files))
 
-	err := kassiscore.ImportFromFile(files)
+	cfg := kassiscore.LoadConfig()
+	err := kassiscore.ImportFromFile(files, cfg.Tika.Serveruri, cfg.Solr.Serveruri, cfg.Solr.Corename)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(10)

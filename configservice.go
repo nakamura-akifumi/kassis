@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -183,18 +184,19 @@ func SetupSolr() {
 
 func CheckConfigAndConnections() (string, error) {
 
-	// step1
-	fmt.Println("Check config path (config.json)")
+	fmt.Println("check start")
+
+	// step1:config
 	filename, err := getConfigPath()
 	if err != nil {
-		fmt.Printf("ng: config file ng\n")
+		fmt.Printf("read config file:ng\n")
 		return "", err
 	}
 
-	fmt.Printf("ok: config file (Path:%s)\n", filename)
+	fmt.Printf("read config file:ok\n")
 
 	cfg, _ := loadConfig(filename)
-	fmt.Printf("ok: config file load and parse\n")
+	fmt.Printf("config file load and parse:ok\n")
 
 	// step2 : check ext folder
 	extdirname, _ := os.Getwd()
@@ -202,40 +204,77 @@ func CheckConfigAndConnections() (string, error) {
 
 	f, err := os.Stat(extdirname)
 	if err == nil && f.IsDir() {
-		fmt.Printf("ok: ext dirname %s\n", extdirname)
+		fmt.Printf("ext dirname:ok (%s)\n", extdirname)
 	} else {
-		fmt.Printf("ng: ext dirname %s\n", extdirname)
+		fmt.Printf("ext dirname:ng (%s)\n", extdirname)
 	}
 
-	// step3 : check solr
+	// step3 : check java
+	out, err := exec.Command("java", "--version").Output()
+	if err != nil {
+		fmt.Printf("Java command:ng\n", err)
+	} else {
+		fmt.Println("Java command:ok")
+		fmt.Println("---")
+		fmt.Println(string(out))
+		fmt.Println("---")
+	}
+
+	// step4 : check solr
+	solrhome := filepath.Join(cfg.Solr.Home)
+	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr home:ng", solrhome)
+	} else {
+		fmt.Println("Solr home:ok", solrhome)
+	}
+
+	solrbin := filepath.Join(cfg.Solr.Home, "bin")
+	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr bin:ng", solrbin)
+	} else {
+		fmt.Println("Solr bin:ok", solrbin)
+	}
+
+	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
+	if f, err := os.Stat(defaultsolrconfigset); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr default config set:ng ", defaultsolrconfigset)
+	} else {
+		fmt.Println("Solr default config set:ok ", defaultsolrconfigset)
+	}
+
+	// step5 : check solr
 	ctx := context.Background()
 	conn, err := solr.NewConnection(cfg.Solr.Serveruri, cfg.Solr.Corename, http.DefaultClient)
 	if err != nil {
-		fmt.Printf("ng: Solr connection error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+		fmt.Printf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	} else {
 		slr, err := solr.NewSingleClient(conn)
 		if err != nil {
-			fmt.Printf("ng: Solr connection error (2) create client Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+			fmt.Printf("Solr connection:ng error (2) create client Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 		} else {
 			err = slr.Ping(ctx)
 			if err != nil {
-				fmt.Printf("ng: Solr ping:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+				fmt.Printf("Solr core ping:ng (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 			} else {
-				fmt.Printf("ok: Solr ping:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+				fmt.Printf("Solr core ping:ok (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 
 				//TODO: core and schema check
 			}
 		}
 	}
 
-	// step4 : check tika
+	// step6 : check tika
 	client := tika.NewClient(nil, cfg.Tika.Serveruri)
 	if client != nil {
-		fmt.Printf("ng: Tika client %s\n", cfg.Tika.Serveruri)
+		vs, err := client.Version(context.Background())
+		if err != nil {
+			fmt.Printf("Tika client:ng %s %s\n", cfg.Tika.Serveruri, err)
+		} else {
+			fmt.Printf("Tika client:ok %s %s\n", cfg.Tika.Serveruri, vs)
+		}
 	} else {
-		fmt.Printf("ok: Tika client %s\n", cfg.Tika.Serveruri)
+		fmt.Printf("Tika client:ng %s\n", cfg.Tika.Serveruri)
 	}
-
 	return "", nil
 }
 
