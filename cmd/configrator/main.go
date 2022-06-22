@@ -14,6 +14,7 @@ func main() {
 	generateDefaultConfigSet := flag.Bool("generate-default-configset", false, "generate default configset to current directory")
 	setupSolr := flag.Bool("setup-solr", false, "setup solr schema")
 	deleteAlldata := flag.Bool("delete-alldata", false, "delete all solr data")
+	startSolr := flag.Bool("start-solr", false, "Start solr")
 	flag.Parse()
 
 	fmt.Println("generateDefaultConfigSet:", *generateDefaultConfigSet)
@@ -27,6 +28,9 @@ func main() {
 	} else if *deleteAlldata == true {
 		cfg := kassiscore.LoadConfig()
 		kassiscore.SolrClearDocument(cfg.Solr.Serveruri, cfg.Solr.Corename)
+	} else if *startSolr == true {
+		cfg := kassiscore.LoadConfig()
+		kassiscore.StartSolr(cfg)
 	} else {
 		kassiscore.CheckConfigAndConnections()
 	}

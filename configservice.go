@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-tika/tika"
 	"github.com/mecenat/solr"
 	"github.com/rs/zerolog/log"
@@ -17,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
 var ConfigFileName = "config.json"
@@ -43,6 +45,9 @@ type KENVCONF struct {
 }
 
 //Child json.RawMessage
+
+const NGLBL = "\u001B[31mNG\u001B[0m"
+const OKLBL = "\u001B[32mOK\u001B[0m"
 
 func GenerateDefaultConfigSet() {
 
@@ -90,6 +95,51 @@ func GenerateDefaultConfigSet() {
 	}
 	fmt.Printf("generate default configset path:%s", configFilename)
 
+}
+
+func StartSolr(cfg *KENVCONF) {
+	fmt.Println("start solr.")
+
+	solrbin := filepath.Join(cfg.Solr.Home, "bin")
+	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr bin:ng", solrbin)
+	} else {
+		fmt.Println("Solr bin:ok", solrbin)
+	}
+
+	solrcmd := filepath.Join(cfg.Solr.Home, "bin", "solr")
+	cmd := exec.Command(solrcmd, "start")
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("error", err.Error())
+		return
+	}
+	waittimesec := 10
+
+	fmt.Printf("wait time %dsec\n", waittimesec)
+	time.Sleep(time.Second * time.Duration(waittimesec))
+	fmt.Println("ProcessID:", cmd.Process.Pid)
+
+	resp, err := http.Get("http://localhost:8983/solr/admin/info/system?wt=xml")
+	if err != nil {
+		fmt.Printf("error: %s\n", err.Error())
+	} else {
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			fmt.Println("Error: status code", resp.StatusCode)
+			return
+		}
+
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			log.Fatal().Err(err)
+		}
+		vs := doc.Find("[name=\"solr-spec-version\"]").Text()
+		sh := doc.Find("[name=\"solr_home\"]").Text()
+
+		fmt.Printf("solr_home:%s\n", sh)
+		fmt.Printf("solr-spec-version:%s\n", vs)
+	}
 }
 
 func SetupSolr() {
@@ -254,9 +304,9 @@ func CheckConfigAndConnections() (string, error) {
 		} else {
 			err = slr.Ping(ctx)
 			if err != nil {
-				fmt.Printf("Solr core ping:ng (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+				fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 			} else {
-				fmt.Printf("Solr core ping:ok (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+				fmt.Printf("Solr core ping:"+OKLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 
 				//TODO: core and schema check
 			}
@@ -268,12 +318,12 @@ func CheckConfigAndConnections() (string, error) {
 	if client != nil {
 		vs, err := client.Version(context.Background())
 		if err != nil {
-			fmt.Printf("Tika client:ng %s %s\n", cfg.Tika.Serveruri, err)
+			fmt.Printf("Tika ping:"+NGLBL+" (%s( %s\n", cfg.Tika.Serveruri, err)
 		} else {
-			fmt.Printf("Tika client:ok %s %s\n", cfg.Tika.Serveruri, vs)
+			fmt.Printf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs)
 		}
 	} else {
-		fmt.Printf("Tika client:ng %s\n", cfg.Tika.Serveruri)
+		fmt.Printf("Tika ping:"+NGLBL+" (%s)\n", cfg.Tika.Serveruri)
 	}
 	return "", nil
 }

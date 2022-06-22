@@ -347,6 +347,11 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		log.Fatal().Err(err)
 		return err
 	}
+	err = slr.Ping(ctx)
+	if err != nil {
+		fmt.Printf("Solr core ping:ng (%s %s)\n", solrserveruri, solrcorename)
+		return err
+	}
 
 	//Create connection with tika server
 	tikaclient := tika.NewClient(nil, tikaserveruri)
@@ -370,7 +375,17 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		//Read the content from file
 		body, err := tikaclient.ParseWithHeader(context.Background(), file, header)
 		if err != nil {
-			log.Fatal().Err(err)
+			//log.Fatal().Err(err)
+			if err.Error() == "response code 422" {
+				// for empty file (0byte stream)
+				continue
+			}
+			if strings.Contains(err.Error(), "connectex: No connection could be made because the target machine actively refused it.") {
+				// cannot connect to tike server
+				return err
+			}
+			fmt.Println("err?:")
+			fmt.Println(err.Error())
 		}
 
 		// Load the HTML document
@@ -380,7 +395,8 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		}
 
 		//for debug
-		fmt.Print(body)
+		//fmt.Print("@1")
+		//fmt.Print(body)
 
 		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {
