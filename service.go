@@ -27,7 +27,8 @@ type Material struct {
 	Filename   string   `json:"filename"`
 	Sheetname  string   `json:"sheetname"`
 	Mediatype  string   `json:"mediatype"`
-	Cellvalues []string `json:"cellvalues"`
+	Contents   []string `json:"contents"`
+	Title      string   `json:"title"`
 }
 
 // Web用のレスポンス構造体
@@ -141,7 +142,7 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 	if qs == "" {
 		q.SetQuery("*:*")
 	} else {
-		q.SetQuery("cellvalues:" + qs)
+		q.SetQuery("contents:" + qs)
 	}
 	// But filter on any film of the horror genre
 	//q.AddFilter("genre", "horror")
@@ -187,7 +188,7 @@ func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, me
 	foldername := filepath.Dir(filename)
 
 	id := fmt.Sprintf("%s%d", filename, 0)
-	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Contents: cells}
 
 	//fmt.Printf("%+v\n", wr)
 	//fmt.Println("try create to solr")
@@ -213,6 +214,20 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
 
 	var cells []string
 
+	basename := filepath.Base(filename)
+	foldername := filepath.Dir(filename)
+
+	title := basename
+
+	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
+		if name, _ := s.Attr("name"); name == "dc:title" {
+			c, _ := s.Attr("content")
+			if c != "" {
+				title = c
+			}
+		}
+	})
+
 	// Find the review items
 	doc.Find("p").Each(func(rindex int, pageselection *goquery.Selection) {
 		// For each item found
@@ -226,11 +241,10 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
 		cells = append(cells, text)
 	})
 
-	basename := filepath.Base(filename)
-	foldername := filepath.Dir(filename)
+	//fmt.Printf("title:%s\n", title)
 
 	id := fmt.Sprintf("%s%d", filename, 0)
-	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
 
 	//fmt.Printf("%+v\n", wr)
 	//fmt.Println("try create to solr")
@@ -252,6 +266,11 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
  */
 func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
 
+	basename := filepath.Base(filename)
+	foldername := filepath.Dir(filename)
+
+	title := basename
+
 	// Find the review items
 	doc.Find("div.page").Each(func(rindex int, pageselection *goquery.Selection) {
 		// For each item found
@@ -262,11 +281,8 @@ func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, med
 		//fmt.Println(text)
 		cells := []string{text}
 
-		basename := filepath.Base(filename)
-		foldername := filepath.Dir(filename)
-
 		id := fmt.Sprintf("%s%d", filename, rindex)
-		doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Cellvalues: cells}
+		doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
 
 		//fmt.Printf("%+v\n", doc)
 		//fmt.Println("try create to solr")
@@ -291,6 +307,19 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 	//TODO:対象外とするシート名の受け渡しは要改良
 	excludesheetnames := []string{"注意書き"}
 
+	basename := filepath.Base(filename)
+	foldername := filepath.Dir(filename)
+
+	title := basename
+	doc.Find("meta").Each(func(i int, s *goquery.Selection) {
+		if name, _ := s.Attr("name"); name == "dc:title" {
+			c, _ := s.Attr("content")
+			if c != "" {
+				title = c
+			}
+		}
+	})
+
 	doc.Find("body div").Each(func(rindex int, sheetselection *goquery.Selection) {
 		sheetname := sheetselection.Find("h1").Text()
 
@@ -311,10 +340,8 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 				// 情報がある行のみ索引を作成する（空行は索引に含めない）
 				if len(cells) > 0 {
 					id := fmt.Sprintf("%s%s%d", filename, sheetname, rindex)
-					basename := filepath.Base(filename)
-					foldername := filepath.Dir(filename)
 
-					doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Sheetname: sheetname, Cellvalues: cells}
+					doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Sheetname: sheetname, Title: title, Contents: cells}
 
 					//fmt.Printf("%+v\n", doc)
 					//fmt.Println("try create to solr")
@@ -395,8 +422,8 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		}
 
 		//for debug
-		//fmt.Print("@1")
-		//fmt.Print(body)
+		fmt.Print("@1")
+		fmt.Print(body)
 
 		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {

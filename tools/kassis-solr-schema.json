@@ -7,7 +7,6 @@
         "required":"true",
         "multiValued":"false"
     },
-    ,
     "add-field" : {
         "name":"objecttype",
         "type":"string",
@@ -33,6 +32,14 @@
         "multiValued":"false"
     },
     "add-field" : {
+        "name":"title",
+        "type":"text_ja",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
         "name":"mediatype",
         "type":"string",
         "indexed":"true",
@@ -49,17 +56,9 @@
         "multiValued":"false"
     },
     "add-field" : {
-        "name":"cellvalues",
+        "name":"contents",
         "type":"text_ja",
         "indexed":"true",
-        "stored":"true",
-        "required":"false",
-        "multiValued":"true"
-    },
-    "add-field" : {
-        "name":"title",
-        "type":"string",
-        "indexed":"false",
         "stored":"true",
         "required":"false",
         "multiValued":"true"

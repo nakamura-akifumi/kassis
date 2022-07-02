@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 )
 
 var ConfigFileName = "config.json"
+var SolrFolders = []string{"solr-8.11.2", "solr-8.11.1", "solr-8.11", "solr-8", "solr"}
 
 type FileProcessor struct {
 	Filenamematch    string   `json:"filenamematch"`
@@ -30,6 +32,7 @@ type FileProcessor struct {
 
 type KENVCONF struct {
 	ExtDir    string `json:"extDir"`
+	ExtAppDir string `json:"extAppDir"`
 	WebServer struct {
 		Listen string `json:"listen"`
 	} `json:"web"`
@@ -44,10 +47,59 @@ type KENVCONF struct {
 	Files []FileProcessor `json:"files"`
 }
 
-//Child json.RawMessage
-
 const NGLBL = "\u001B[31mNG\u001B[0m"
 const OKLBL = "\u001B[32mOK\u001B[0m"
+
+const TIKAAPPURL = "https://dlcdn.apache.org/tika/2.4.1/tika-server-standard-2.4.1.jar"
+const SOLRAPPURL = "https://www.apache.org/dyn/closer.lua/lucene/solr/8.11.2/solr-8.11.2.zip?action=download"
+
+func DownloadApps() {
+	log.Info().Msg("download tika-server")
+
+	var storepath string
+
+	rootdir, _ := os.Getwd()
+
+	u, err := url.Parse(TIKAAPPURL)
+	if err != nil {
+		log.Fatal().Err(err)
+		return
+	}
+	storepath = filepath.Join(rootdir, "tools", "app", filepath.Base(u.Path))
+	if err := DownloadFile(storepath, TIKAAPPURL); err != nil {
+		panic(err)
+	}
+
+	log.Info().Msg("download apache solr")
+
+	u, err = url.Parse(SOLRAPPURL)
+	if err != nil {
+		log.Fatal().Err(err)
+		return
+	}
+	storepath = filepath.Join(rootdir, "tools", "app", filepath.Base(u.Path))
+	if err := DownloadFile(storepath, SOLRAPPURL); err != nil {
+		panic(err)
+	}
+
+}
+
+func DownloadFile(filepath string, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
 
 func GenerateDefaultConfigSet() {
 
@@ -58,7 +110,19 @@ func GenerateDefaultConfigSet() {
 	cfg.WebServer.Listen = ":1323"
 	cfg.ExtDir = "ext"
 
-	solrhome, _ := os.Getwd()
+	toolhome, _ := os.Getwd()
+	toolhome = filepath.Join(toolhome, "tools")
+	apphome := filepath.Join(toolhome, "app")
+
+	cfg.ExtAppDir = apphome
+
+	solrhome := filepath.Join(apphome, "solr-8.11.2")
+	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr home:ng", solrhome)
+	} else {
+		fmt.Println("Solr home:ok", solrhome)
+	}
+
 	solrhome = filepath.Join(solrhome, "tools", "app", "solr-8.11.1")
 	cfg.Solr.Home = solrhome
 
@@ -120,7 +184,8 @@ func StartSolr(cfg *KENVCONF) {
 	time.Sleep(time.Second * time.Duration(waittimesec))
 	fmt.Println("ProcessID:", cmd.Process.Pid)
 
-	resp, err := http.Get("http://localhost:8983/solr/admin/info/system?wt=xml")
+	url := cfg.Solr.Serveruri + "/solr/admin/info/system?wt=xml"
+	resp, err := http.Get(url)
 	if err != nil {
 		fmt.Printf("error: %s\n", err.Error())
 	} else {
@@ -204,8 +269,6 @@ func SetupSolr() {
 		return
 	}
 
-	//fmt.Println(string(bytes))
-	fmt.Println("Post schema file")
 	url := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"
 	req, err := http.NewRequest(
 		"POST",
@@ -216,20 +279,46 @@ func SetupSolr() {
 		log.Err(err)
 		return
 	}
-
-	log.Debug().Msgf("%s", req.Header)
-
-	// Content-Type 設定
 	req.Header.Set("Content-Type", "Content-type:application/json")
 
+	fmt.Println("Post schema file")
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Err(err)
 		return
 	}
+	// deferでクローズ処理
 	defer resp.Body.Close()
+	// Bodyの内容を読み込む
+	body, _ := io.ReadAll(resp.Body)
 
+	if resp.StatusCode != 200 {
+		fmt.Println("Error:")
+		fmt.Print(string(body))
+		return
+	}
+
+	fmt.Println("success")
+	fmt.Println("reload core")
+
+	// Reload core
+	url = cfg.Solr.Serveruri + "/solr/admin/cores?action=RELOAD&core=" + cfg.Solr.Corename
+	resp, err = http.Get(url)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+
+	if resp.StatusCode != 200 {
+		fmt.Println("Error:")
+		fmt.Print(string(body))
+		return
+	}
+
+	fmt.Println("success")
+
+	fmt.Println("complete")
 }
 
 func CheckConfigAndConnections() (string, error) {
