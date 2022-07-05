@@ -23,7 +23,8 @@ import (
 )
 
 var ConfigFileName = "config.json"
-var SolrFolders = []string{"solr-8.11.2", "solr-8.11.1", "solr-8.11", "solr-8", "solr"}
+
+//var SolrFolders = []string{"solr-8.11.2", "solr-8.11.1", "solr-8.11", "solr-8", "solr"}
 
 type FileProcessor struct {
 	Filenamematch    string   `json:"filenamematch"`
@@ -184,8 +185,8 @@ func StartSolr(cfg *KENVCONF) {
 	time.Sleep(time.Second * time.Duration(waittimesec))
 	fmt.Println("ProcessID:", cmd.Process.Pid)
 
-	url := cfg.Solr.Serveruri + "/solr/admin/info/system?wt=xml"
-	resp, err := http.Get(url)
+	uri := cfg.Solr.Serveruri + "/solr/admin/info/system?wt=xml"
+	resp, err := http.Get(uri)
 	if err != nil {
 		fmt.Printf("error: %s\n", err.Error())
 	} else {
@@ -269,12 +270,8 @@ func SetupSolr() {
 		return
 	}
 
-	url := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"
-	req, err := http.NewRequest(
-		"POST",
-		url,
-		strings.NewReader(string(bytes)),
-	)
+	uri := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"
+	req, err := http.NewRequest("POST", uri, strings.NewReader(string(bytes)))
 	if err != nil {
 		log.Err(err)
 		return
@@ -303,8 +300,8 @@ func SetupSolr() {
 	fmt.Println("reload core")
 
 	// Reload core
-	url = cfg.Solr.Serveruri + "/solr/admin/cores?action=RELOAD&core=" + cfg.Solr.Corename
-	resp, err = http.Get(url)
+	uri = cfg.Solr.Serveruri + "/solr/admin/cores?action=RELOAD&core=" + cfg.Solr.Corename
+	resp, err = http.Get(uri)
 	if err != nil {
 		log.Err(err)
 		return
@@ -317,6 +314,10 @@ func SetupSolr() {
 	}
 
 	fmt.Println("success")
+
+	waittimesec := 5
+	fmt.Printf("wait time %dsec\n", waittimesec)
+	time.Sleep(time.Second * time.Duration(waittimesec))
 
 	fmt.Println("complete")
 }
@@ -351,7 +352,8 @@ func CheckConfigAndConnections() (string, error) {
 	// step3 : check java
 	out, err := exec.Command("java", "--version").Output()
 	if err != nil {
-		fmt.Printf("Java command:ng\n", err)
+		fmt.Println("Java command:ng")
+		fmt.Println(err.Error())
 	} else {
 		fmt.Println("Java command:ok")
 		fmt.Println("---")

@@ -31,7 +31,7 @@ type Material struct {
 	Title      string   `json:"title"`
 }
 
-// Web用のレスポンス構造体
+// KWQIF は、Web用のレスポンス構造体
 type KWQIF struct {
 	QueryString  string
 	QueryMessage string
@@ -47,10 +47,10 @@ type KWRIF struct {
 	Materials       []Material
 }
 
-const CONTENTTYPE_EXCEL string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-const CONTENTTYPE_PDF string = "application/pdf"
-const CONTENTTYPE_TEXT string = "text/plain"
-const CONTENTTYPE_WORD string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+const ContenttypeExcel string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+const ContenttypePdf string = "application/pdf"
+const ContenttypeText string = "text/plain"
+const ContenttypeWord string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 //配列の中に特定の文字列が含まれるかを返す
 func arrayContains(arr []string, str string) bool {
@@ -66,13 +66,13 @@ func ExtnameToMediaType(extname string) string {
 	ct := "application/octet-stream"
 	switch extname {
 	case ".xlsx":
-		ct = CONTENTTYPE_EXCEL
+		ct = ContenttypeExcel
 	case ".pdf":
-		ct = CONTENTTYPE_PDF
+		ct = ContenttypePdf
 	case ".txt":
-		ct = CONTENTTYPE_TEXT
+		ct = ContenttypeText
 	case ".docx":
-		ct = CONTENTTYPE_WORD
+		ct = ContenttypeWord
 	}
 	return ct
 }
@@ -112,10 +112,8 @@ func SolrClearDocument(uriaddress string, corename string) error {
 	return nil
 }
 
-//検索用関数
-//TODO:そもそも必要なのか。。。
-//引数要改良
-//solrに接続する箇所も改良。毎回接続するのは問題。
+// SolrQuery は、Solrに検索を投げます
+// TODO: 引数要改良 、solrに接続する箇所も改良。毎回接続するのは問題。
 func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, error) {
 	ctx := context.Background()
 	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
@@ -144,12 +142,17 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 	} else {
 		q.SetQuery("contents:" + qs)
 	}
+
+	q.SetParam("hl", "true")
+	q.SetParam("hl.fl", "title")
+	q.SetParam("hl.simple.pre", "<em>")
+	q.SetParam("hl.simple.post", "</em>")
 	// But filter on any film of the horror genre
 	//q.AddFilter("genre", "horror")
 	// Then we set the sorting to happen descending based on the year property
 	//q.SetSort("year desc")
 
-	//fmt.Println(q.String())
+	fmt.Println(q.String())
 
 	//TODO: coreが無い場合にエラーに変なエラーになる（要調査）
 	res, err := slr.Search(ctx, q)
@@ -160,14 +163,13 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 	}
 
 	fmt.Printf("NumFound/FetchDocs:%d/%d\n", res.Data.NumFound, len(res.Data.Docs))
+	fmt.Printf("Highlighting:%d\n", len(res.Data.Docs))
 
 	return res, nil
 }
 
-/*
- * テキスト形式のファイルの索引を作る
- * 1ファイルで Solr の1ドキュメントとする
- */
+// GenerateTextIndex は、テキスト形式のファイルの索引を作成します
+// 1ファイルで Solr の1ドキュメントとする
 func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
 
 	var cells []string
@@ -204,10 +206,8 @@ func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, me
 	return "ok"
 }
 
-/*
- * MS WORD(.docx)形式のファイルの索引を作る
- * 1ファイルで Solr の1ドキュメントとする
- */
+// GenerateWordxIndex は MS WORD(.docx)形式のファイルの索引を作る
+// 1ファイルで Solr の1ドキュメントとする
 func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
 
 	//fmt.Println("docx")
@@ -260,10 +260,8 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
 	return "ok"
 }
 
-/*
- * PDF(.pdf)形式のファイルの索引を作る
- * PDFの1ページで Solr の1ドキュメントとする
- */
+// GeneratePdfIndex は、PDF(.pdf)形式のファイルの索引を作る
+// PDFの1ページで Solr の1ドキュメントとする
 func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
 
 	basename := filepath.Base(filename)
@@ -299,10 +297,8 @@ func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, med
 	return "ok"
 }
 
-/*
- * Excel(.xlsx)形式のファイルの索引を作る
- * Excelの1行で Solr の1ドキュメントとする
- */
+// GenerateExcelIndex は Excel(.xlsx)形式のファイルの索引を作る
+// Excelの1行で Solr の1ドキュメントとする
 func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
 	//TODO:対象外とするシート名の受け渡しは要改良
 	excludesheetnames := []string{"注意書き"}
@@ -383,17 +379,17 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 	//Create connection with tika server
 	tikaclient := tika.NewClient(nil, tikaserveruri)
 
-	success_count := 0
+	successCount := 0
 	for _, filename := range files {
-		fmt.Printf("%d/%d filename:%s\n", success_count+1, len(files), filename)
+		fmt.Printf("%d/%d filename:%s\n", successCount+1, len(files), filename)
 		//Get the file and open it
 		file, err := os.Open(filename)
 		if err != nil {
 			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
 
-		//Close the file
-		defer file.Close()
+		//TODO: close file
+		//defer file.Close()
 
 		extname := filepath.Ext(filename)
 		contentType := ExtnameToMediaType(extname)
@@ -439,10 +435,10 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 			fmt.Printf("\nunknown format: skip [%s]\n", filename)
 		}
 		fmt.Printf("\n")
-		success_count++
+		successCount++
 	}
 
-	fmt.Printf("success_count=%d\n", success_count)
+	fmt.Printf("success_count=%d\n", successCount)
 
 	return nil
 }
