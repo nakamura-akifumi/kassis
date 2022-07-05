@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"html/template"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 )
@@ -76,10 +75,9 @@ func NewRouter() *echo.Echo {
 	//g := e.Group("/admin")
 	//g := e.Group("/api")
 
-	e.Static("/static", "assets")
-	e.GET("/", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Hello, World!")
-	})
+	staticfilepath, _ := os.Getwd()
+	staticfilepath = filepath.Join(staticfilepath, "web", "assets")
+	e.Static("/static", staticfilepath)
 	e.File("/", "public/index.html")
 
 	e.GET("/api/materials", kassiscore.HandlerGetApiMaterials)

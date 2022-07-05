@@ -9,40 +9,55 @@
     <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="static/css/normalize.css">
     <link rel="stylesheet" href="static/css/skeleton.css">
+    <link rel="stylesheet" href="static/css/custom.css">
     <link rel="icon" type="image/png" href="static/images/favicon.png">
 </head>
 <body>
-<div class="container">
-
-    <form action="/materials" method="GET">
-        <div class="row">
-            <div class="six columns">
-                <input class="u-full-width" type="search" placeholder="query" name="qs" id="qs">
+    <header class="header">
+        <div class="container">
+            <div class="row">
+                <div class="two columns"><p>kassis</p></div>
+                <div class="ten columns text-right flex">
+                    <div class="panel" id="notificationRing"></div>
+                    <div class="panel" id="loginButton"></div>
+                </div>
             </div>
         </div>
-        <input class="button-primary" type="button" value="送信">
+    </header>
 
-    </form>
+    <div class="app">
+        <div class="container">
+            <div class="row">
+                <div class="twelve columns">
+                    <form action="/materials" method="GET">
+                        <input class="u-cf uif" type="search" placeholder="フリーワード" name="qs" id="qs">
+                        <button class="ubf" type="submit" id="searchButton"></button>
+                    </form>
+                </div>
 
-    <div class="row">
-        <div class="one-half column" style="margin-top: 2%">
-            <h4>Found:{{.NumFound}}</h4>
+                <div class="twelve columns">
+                    検索結果一覧：
+                    検索語：{{.KQ.QueryMessage}} {{.NumFound}} 件
+                    <table class="u-full-width">
+                        <thead>
+                        <tr>
+                            <th>タイトル</th>
+                            <th>コンテンツ</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {{ range .Materials }}
+                        <tr>
+                            <td>{{.Title}}</td>
+                            <td>{{.Contents}}</td>
+                        </tr>
+                        {{ end }}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-   
-    <table class="list">
-        <tr class="row">
-            <th>ID</th>
-            <th>内容</th>
-        </tr>
-        {{ range .Materials }}
-        <tr class="row">
-            <td>{{.ID}}</td>
-            <td>{{.Cellvalues}}</td>
-        </tr>
-        {{ end }}
-    </table>
-</div>
 </body>
 </html>
 {{end}}

@@ -21,7 +21,7 @@ func TestExtnameToMediaTypeSuccess(t *testing.T) {
 	}
 
 	result = ExtnameToMediaType(".xlsx")
-	if result != CONTENTTYPE_EXCEL {
+	if result != ContenttypeExcel {
 		t.Fatal("failed test")
 	}
 }
@@ -34,7 +34,7 @@ func TestImportFromFile(t *testing.T) {
 	SolrClearDocument(solrserveruri, solrcorename)
 
 	files := []string{"nonono"}
-	err := ImportFromFile(files)
+	err := ImportFromFile(files, "", solrserveruri, solrcorename)
 	//TODO: errメッセージを確認したい（os: Unable to open file ～）
 	if err == nil {
 		t.Fatal("failed test")
@@ -44,7 +44,7 @@ func TestImportFromFile(t *testing.T) {
 	filepathname := filepath.Join(dir, "testdata", "Book1.xlsx")
 
 	files = []string{filepathname}
-	err = ImportFromFile(files)
+	err = ImportFromFile(files, "", solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -83,7 +83,7 @@ func TestImportFromFile(t *testing.T) {
 	if materials[1].Filename != "Book1.xlsx" {
 		t.Fatal("failed test")
 	}
-	if materials[1].Cellvalues[0] != "2022A1" {
+	if materials[1].Contents[0] != "2022A1" {
 		t.Fatal("failed test")
 	}
 
@@ -92,7 +92,7 @@ func TestImportFromFile(t *testing.T) {
 	filepathname = filepath.Join(dir, "testdata", "shinanogawa.pdf")
 
 	files = []string{filepathname}
-	err = ImportFromFile(files)
+	err = ImportFromFile(files, "", solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -112,7 +112,7 @@ func TestImportFromFile(t *testing.T) {
 	filepathname2 := filepath.Join(dir, "testdata", "shinanogawa.pdf")
 
 	files = []string{filepathname1, filepathname2}
-	err = ImportFromFile(files)
+	err = ImportFromFile(files, "", solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -137,7 +137,7 @@ func TestWebCrawlerInvalidPath(t *testing.T) {
 	assert.Contains(t, result, "ng")
 	assert.EqualError(t, err, "Get \"\": unsupported protocol scheme \"\"")
 
-	result, err = WebCrawler("http://www.example.com", cfg)
+	result, err = WebCrawler("https://www.example.com", cfg)
 	assert.Contains(t, result, "ok")
 	assert.NoError(t, err)
 }

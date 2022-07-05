@@ -1,3 +1,4 @@
 tools/archives/*
+tools/app/*
 .idea
 bin

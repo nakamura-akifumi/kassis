@@ -8,6 +8,14 @@
         "multiValued":"false"
     },
     "add-field" : {
+        "name":"objecttype",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"true",
+        "multiValued":"false"
+    },
+    "add-field" : {
         "name":"foldername",
         "type":"string",
         "indexed":"true",
@@ -17,6 +25,14 @@
     },
     "add-field" : {
         "name":"filename",
+        "type":"text_ja",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"title",
         "type":"text_ja",
         "indexed":"true",
         "stored":"true",
@@ -40,17 +56,9 @@
         "multiValued":"false"
     },
     "add-field" : {
-        "name":"cellvalues",
+        "name":"contents",
         "type":"text_ja",
         "indexed":"true",
-        "stored":"true",
-        "required":"false",
-        "multiValued":"true"
-    },
-    "add-field" : {
-        "name":"title",
-        "type":"string",
-        "indexed":"false",
         "stored":"true",
         "required":"false",
         "multiValued":"true"
