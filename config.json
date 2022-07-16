@@ -4,7 +4,7 @@
         "listen": ":1323"
     },
     "solr": {
-        "home": "C:\\Users\\tmpz8\\GolandProjects\\kassis\\tools\\app\\solr-8.11.1",
+        "home": "C:\\Users\\tmpz8\\GolandProjects\\kassis\\tools\\app\\solr-8.11.2",
         "serveruri": "http://localhost:8983",
         "corename": "kassiscore"
     },
