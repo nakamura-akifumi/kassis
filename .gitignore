@@ -1,4 +1,6 @@
 tools/archives/*
 tools/app/*
+tools/app*
 .idea
 bin
+config.json

@@ -1,6 +1,7 @@
 package kassiscore
 
 import (
+	"archive/zip"
 	"bufio"
 	"context"
 	"encoding/json"
@@ -59,6 +60,16 @@ func DownloadApps() {
 
 	rootdir, _ := os.Getwd()
 
+	storepath = filepath.Join(rootdir, "tools", "app")
+	if f, err := os.Stat(storepath); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Printf("create directory %s\n", storepath)
+		err := os.Mkdir(storepath, 0755)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+
 	u, err := url.Parse(TIKAAPPURL)
 	if err != nil {
 		log.Fatal().Err(err)
@@ -81,6 +92,12 @@ func DownloadApps() {
 		panic(err)
 	}
 
+	//s := strings.Replace(filepath.Base(u.Path), filepath.Ext(u.Path), "", 1)
+	outpath := filepath.Join(rootdir, "tools", "app")
+
+	log.Info().Msgf("unzip solr: %s", outpath)
+
+	err = Unzip(storepath, outpath)
 }
 
 func DownloadFile(filepath string, url string) error {
@@ -156,7 +173,7 @@ func GenerateDefaultConfigSet() {
 		log.Err(err)
 		return
 	}
-	fmt.Printf("generate default configset path:%s", configFilename)
+	fmt.Printf("generate default configset path:%s\n", configFilename)
 
 }
 
@@ -561,4 +578,39 @@ func CopySymLink(source, dest string) error {
 		return err
 	}
 	return os.Symlink(link, dest)
+}
+
+func Unzip(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		path := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			f, err := os.OpenFile(
+				path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

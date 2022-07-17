@@ -1,9 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/nakamura-akifumi/kassis"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -22,6 +19,7 @@ func TestHelloHandler(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Hello, World!!")
 }
 
+/*
 func TestApiMaterialsQueryHandler(t *testing.T) {
 	router := NewRouter()
 
@@ -47,9 +45,8 @@ func TestApiMaterialsQueryHandler(t *testing.T) {
 	}
 
 	assert.Equal(t, "2022A1", data.Materials[0].Cellvalues[0])
-
 }
-
+*/
 func TestMaterialsQueryHandler(t *testing.T) {
 	router := NewRouter()
 
