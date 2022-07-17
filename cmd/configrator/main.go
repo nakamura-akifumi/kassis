@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	kassiscore "github.com/nakamura-akifumi/kassis"
+	"os"
 )
 
 func main() {
@@ -16,19 +18,35 @@ func main() {
 	deleteAlldata := flag.Bool("delete-alldata", false, "delete all solr data")
 	startSolr := flag.Bool("start-solr", false, "Start solr")
 	downloadapp := flag.Bool("download-app", false, "download apps")
+	corename := flag.String("corename", "", "solr corename")
 	flag.Parse()
 
 	fmt.Println("generateDefaultConfigSet:", *generateDefaultConfigSet)
 	fmt.Println("setupSolr:", *setupSolr)
 	fmt.Println("deleteAlldata:", *deleteAlldata)
 	fmt.Println("downloadapp:", *downloadapp)
+	fmt.Println("corename", *corename)
 
 	if *generateDefaultConfigSet == true {
 		kassiscore.GenerateDefaultConfigSet()
 	} else if *setupSolr == true {
-		kassiscore.SetupSolr()
+		err := kassiscore.SetupSolr(*corename)
+		if err != nil {
+			fmt.Println(err)
+		}
 	} else if *deleteAlldata == true {
 		cfg := kassiscore.LoadConfig()
+
+		fmt.Println("clear documents?(Y/N)")
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			if scanner.Text() == "Y" {
+				break
+			}
+			if scanner.Text() == "N" {
+				return
+			}
+		}
 		kassiscore.SolrClearDocument(cfg.Solr.Serveruri, cfg.Solr.Corename)
 	} else if *startSolr == true {
 		cfg := kassiscore.LoadConfig()

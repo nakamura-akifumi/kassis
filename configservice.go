@@ -6,10 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-tika/tika"
-	"github.com/mecenat/solr"
 	"github.com/rs/zerolog/log"
+	"github.com/vanng822/go-solr/solr"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -18,7 +17,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 )
 
@@ -185,132 +183,98 @@ func StartSolr(cfg *KENVCONF) {
 	time.Sleep(time.Second * time.Duration(waittimesec))
 	fmt.Println("ProcessID:", cmd.Process.Pid)
 
-	uri := cfg.Solr.Serveruri + "/solr/admin/info/system?wt=xml"
-	resp, err := http.Get(uri)
+	vs, err := SolrServerPing(cfg.Solr.Serveruri)
 	if err != nil {
 		fmt.Printf("error: %s\n", err.Error())
 	} else {
-		defer resp.Body.Close()
-		if resp.StatusCode != 200 {
-			fmt.Println("Error: status code", resp.StatusCode)
-			return
-		}
-
-		doc, err := goquery.NewDocumentFromReader(resp.Body)
-		if err != nil {
-			log.Fatal().Err(err)
-		}
-		vs := doc.Find("[name=\"solr-spec-version\"]").Text()
-		sh := doc.Find("[name=\"solr_home\"]").Text()
-
-		fmt.Printf("solr_home:%s\n", sh)
 		fmt.Printf("solr-spec-version:%s\n", vs)
 	}
 }
 
-func SetupSolr() {
+func SetupSolr(corename string) error {
 	fmt.Println("start setup solr.")
+	fmt.Printf("corenname:%s\n", corename)
 
 	filename, err := getConfigPath()
 	if err != nil {
 		fmt.Printf("ng: config file ng\n")
-		return
+		return err
 	}
 	cfg, _ := loadConfig(filename)
 
-	fmt.Printf("SolrServerPath:%s corename:%s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+	if corename == "" {
+		corename = cfg.Solr.Corename
+	}
+	fmt.Printf("SolrServerPath:%s corename:%s\n", cfg.Solr.Serveruri, corename)
 	/*
-			$ ./bin/solr delete -c kassiscore
-		 cp -r server/solr/configsets/_default server/solr/core1
-			$ ./bin/solr create_core -c kassiscore -d _default
-			$ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
-			$ curl -X POST -H 'Content-type:application/json' --data-binary @tools/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
+		$ ./bin/solr delete -c kassiscore
+		$ cp -r server/solr/configsets/_default server/solr/core1
+		$ ./bin/solr create_core -c kassiscore -d _default
+		$ ./bin/solr config -c kassiscore -p 8983 -action set-user-property -property update.autoCreateFields -value false
+		$ curl -X POST -H 'Content-type:application/json' --data-binary @tools/kassis-solr-schema.json  http://localhost:8983/solr/kassiscore/schema
 	*/
 
 	fmt.Printf("connect to solr\n")
-	ctx := context.Background()
 	// Initialize a new solr Core Admin API
-	ca, err := solr.NewCoreAdmin(ctx, cfg.Solr.Serveruri, http.DefaultClient)
+	ca, err := solr.NewCoreAdmin(cfg.Solr.Serveruri + "/solr/")
 	if err != nil {
 		log.Err(err)
-		return
+		return err
 	}
 
 	//TODO: core exist?
 
+	// copy configset
 	// cp -r server/solr/configsets/_default server/solr/<corename>
 	fmt.Printf("copy solr configset\n")
 	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
-	destdir := filepath.Join(cfg.Solr.Home, "server", "solr", cfg.Solr.Corename)
+	destdir := filepath.Join(cfg.Solr.Home, "server", "solr", corename)
+
+	log.Debug().Msgf("%s to %s", defaultsolrconfigset, destdir)
+
 	err = CopyDirectory(defaultsolrconfigset, destdir)
 	if err != nil {
 		fmt.Printf("%s", err)
 		log.Err(err)
-		return
+		return err
 	}
 
+	// create core
 	fmt.Printf("create core\n")
-	//res, err := ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{Config: "conf/solrconfig.xml"})
-	_, err = ca.Create(ctx, cfg.Solr.Corename, &solr.CoreCreateOpts{InstanceDir: cfg.Solr.Corename})
+	params := &url.Values{}
+	params.Add("name", corename)
+	//params.Add("instanceDir", corename)
+	//params.Add("config", "solrconfig.xml")
+	//params.Add("dataDir", "data")
+	_, err = ca.Action("CREATE", params)
 	if err != nil {
-		//TODO: delete core
-		fmt.Printf("%s", err)
-		log.Err(err)
-		return
+		log.Error().Msg("fail create core")
+		log.Err(err).Msg("error reason:")
+		return err
 	}
 
+	// update schema
 	fmt.Printf("read schema file\n")
 
 	schemafilename, _ := os.Getwd()
 	schemafilename = filepath.Join(schemafilename, "tools", "kassis-solr-schema.json")
 
-	bytes, err := ioutil.ReadFile(schemafilename)
+	err = SolrSchemaUpdate(cfg.Solr.Serveruri, corename, schemafilename)
 	if err != nil {
-		log.Err(err)
-		return
+		log.Error().Msg("fail update schema")
+		log.Err(err).Msg("error reason:")
+		return err
 	}
 
-	uri := cfg.Solr.Serveruri + "/solr/" + cfg.Solr.Corename + "/schema"
-	req, err := http.NewRequest("POST", uri, strings.NewReader(string(bytes)))
-	if err != nil {
-		log.Err(err)
-		return
-	}
-	req.Header.Set("Content-Type", "Content-type:application/json")
-
-	fmt.Println("Post schema file")
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Err(err)
-		return
-	}
-	// deferでクローズ処理
-	defer resp.Body.Close()
-	// Bodyの内容を読み込む
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != 200 {
-		fmt.Println("Error:")
-		fmt.Print(string(body))
-		return
-	}
-
-	fmt.Println("success")
+	// reload core
 	fmt.Println("reload core")
 
-	// Reload core
-	uri = cfg.Solr.Serveruri + "/solr/admin/cores?action=RELOAD&core=" + cfg.Solr.Corename
-	resp, err = http.Get(uri)
+	params = &url.Values{}
+	params.Add("core", corename)
+	_, err = ca.Action("RELOAD", params)
 	if err != nil {
 		log.Err(err)
-		return
-	}
-
-	if resp.StatusCode != 200 {
-		fmt.Println("Error:")
-		fmt.Print(string(body))
-		return
+		return err
 	}
 
 	fmt.Println("success")
@@ -320,6 +284,8 @@ func SetupSolr() {
 	time.Sleep(time.Second * time.Duration(waittimesec))
 
 	fmt.Println("complete")
+
+	return nil
 }
 
 func CheckConfigAndConnections() (string, error) {
@@ -384,23 +350,17 @@ func CheckConfigAndConnections() (string, error) {
 	}
 
 	// step5 : check solr
-	ctx := context.Background()
-	conn, err := solr.NewConnection(cfg.Solr.Serveruri, cfg.Solr.Corename, http.DefaultClient)
+	si, err := solr.NewSolrInterface(cfg.Solr.Serveruri, cfg.Solr.Corename)
 	if err != nil {
 		fmt.Printf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	} else {
-		slr, err := solr.NewSingleClient(conn)
+		_, qtime, err := si.Ping()
 		if err != nil {
-			fmt.Printf("Solr connection:ng error (2) create client Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+			fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 		} else {
-			err = slr.Ping(ctx)
-			if err != nil {
-				fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
-			} else {
-				fmt.Printf("Solr core ping:"+OKLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+			fmt.Printf("Solr core ping:"+OKLBL+" (%s %s) qtime:%d\n", cfg.Solr.Serveruri, cfg.Solr.Corename, qtime)
 
-				//TODO: core and schema check
-			}
+			//TODO: core and schema check
 		}
 	}
 
@@ -490,6 +450,7 @@ func loadConfig(fname string) (*KENVCONF, error) {
 	f, err := os.Open(fname)
 	if err != nil {
 		log.Fatal().Err(err).Msg("can not load config file")
+		return nil, err
 	}
 	defer f.Close()
 

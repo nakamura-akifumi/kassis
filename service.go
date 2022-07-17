@@ -1,12 +1,14 @@
 package kassiscore
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
+	"github.com/google/go-tika/tika"
 	"github.com/rs/zerolog/log"
+	"github.com/vanng822/go-solr/solr"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,10 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/PuerkitoBio/goquery"
-	"github.com/google/go-tika/tika"
-	"github.com/mecenat/solr"
 )
 
 type Material struct {
@@ -35,12 +33,12 @@ type Material struct {
 type KWQIF struct {
 	QueryString  string
 	QueryMessage string
-	NumOfPage    int64
-	Curretpage   int64
-	Lastpage     int64
+	NumOfPage    int
+	Curretpage   int
+	Lastpage     int
 }
 type KWRIF struct {
-	NumFound        int64
+	NumFound        int
 	ResponseStatus  string
 	ResponseMessage string
 	KQ              KWQIF
@@ -79,34 +77,19 @@ func ExtnameToMediaType(extname string) string {
 
 func SolrClearDocument(uriaddress string, corename string) error {
 
-	fmt.Println("clear documents?(Y/N)")
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		if scanner.Text() == "Y" {
-			break
-		}
-		if scanner.Text() == "N" {
-			return nil
-		}
-	}
-
-	ctx := context.Background()
-	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
+	uri := uriaddress + "/solr"
+	si, err := solr.NewSolrInterface(uri, corename)
 	if err != nil {
 		log.Fatal().
 			Err(err).
 			Msgf("Connection error.")
-	}
-	slr, err := solr.NewSingleClient(conn)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msgf("Not create solr client.")
+		return err
 	}
 
-	_, err = slr.Clear(ctx)
+	_, err = si.DeleteAll()
 	if err != nil {
 		log.Fatal().Err(err)
+		return err
 	}
 
 	return nil
@@ -114,9 +97,9 @@ func SolrClearDocument(uriaddress string, corename string) error {
 
 // SolrQuery は、Solrに検索を投げます
 // TODO: 引数要改良 、solrに接続する箇所も改良。毎回接続するのは問題。
-func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, error) {
-	ctx := context.Background()
-	conn, err := solr.NewConnection(uriaddress, corename, http.DefaultClient)
+func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult, error) {
+	uri := uriaddress + "/solr"
+	si, err := solr.NewSolrInterface(uri, corename)
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -124,53 +107,40 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.Response, e
 		return nil, err
 	}
 
-	slr, err := solr.NewSingleClient(conn)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msgf("Not create solr client.")
-		return nil, err
-	}
-
-	opts := &solr.ReadOptions{Rows: 20, Debug: solr.DebugTypeQuery}
-	q := solr.NewQuery(opts)
+	//opts := &solr.ReadOptions{Rows: 20, Debug: solr.DebugTypeQuery}
+	q := solr.NewQuery()
 
 	// cut whitespace and zenkaku space
 	qs = strings.TrimRight(qs, " 　")
 	if qs == "" {
-		q.SetQuery("*:*")
+		q.Q("*:*")
 	} else {
-		q.SetQuery("contents:" + qs)
+		q.Q("contents:" + qs)
 	}
 
+	q.Start(0)
+	q.Rows(20)
+
 	q.SetParam("hl", "true")
-	q.SetParam("hl.fl", "title")
+	q.SetParam("hl.fl", "contents")
 	q.SetParam("hl.simple.pre", "<em>")
 	q.SetParam("hl.simple.post", "</em>")
-	// But filter on any film of the horror genre
-	//q.AddFilter("genre", "horror")
-	// Then we set the sorting to happen descending based on the year property
-	//q.SetSort("year desc")
 
-	fmt.Println(q.String())
-
-	//TODO: coreが無い場合にエラーに変なエラーになる（要調査）
-	res, err := slr.Search(ctx, q)
+	s := si.Search(q)
+	res, err := s.Result(nil)
 	if err != nil {
-		fmt.Println("debug7")
-		log.Fatal().Err(err)
+		log.Err(err).Msgf("fail query: q=%s", q)
 		return nil, err
 	}
 
-	fmt.Printf("NumFound/FetchDocs:%d/%d\n", res.Data.NumFound, len(res.Data.Docs))
-	fmt.Printf("Highlighting:%d\n", len(res.Data.Docs))
+	log.Info().Msgf("NumFound/FetchDocs/Highlighting:%d/%d/%d", res.Results.NumFound, len(res.Results.Docs), len(res.Highlighting))
 
 	return res, nil
 }
 
 // GenerateTextIndex は、テキスト形式のファイルの索引を作成します
 // 1ファイルで Solr の1ドキュメントとする
-func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
+func GenerateTextIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
 
 	var cells []string
 
@@ -189,13 +159,16 @@ func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, me
 	basename := filepath.Base(filename)
 	foldername := filepath.Dir(filename)
 
-	id := fmt.Sprintf("%s%d", filename, 0)
-	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Contents: cells}
+	mid := fmt.Sprintf("%s%d", filename, 0)
 
-	//fmt.Printf("%+v\n", wr)
-	//fmt.Println("try create to solr")
+	vparams := map[string]string{
+		"mediatype":  mediatype,
+		"foldername": foldername,
+		"filename":   basename,
+		"title":      basename,
+	}
 
-	_, err := slr.Create(ctx, &wr, &solr.WriteOptions{Commit: true})
+	err := SolrAddDocument(si, mid, "FILE", cells, vparams)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -208,7 +181,7 @@ func GenerateTextIndex(ctx context.Context, slr solr.Client, filename string, me
 
 // GenerateWordxIndex は MS WORD(.docx)形式のファイルの索引を作る
 // 1ファイルで Solr の1ドキュメントとする
-func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
+func GenerateWordxIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
 
 	//fmt.Println("docx")
 
@@ -243,26 +216,28 @@ func GenerateWordxIndex(ctx context.Context, slr solr.Client, filename string, m
 
 	//fmt.Printf("title:%s\n", title)
 
-	id := fmt.Sprintf("%s%d", filename, 0)
-	wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
+	mid := fmt.Sprintf("%s%d", filename, 0)
+	//wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
 
-	//fmt.Printf("%+v\n", wr)
-	//fmt.Println("try create to solr")
+	vparams := map[string]string{
+		"mediatype":  mediatype,
+		"foldername": foldername,
+		"filename":   basename,
+		"title":      title,
+	}
 
-	_, err := slr.Create(ctx, &wr, &solr.WriteOptions{Commit: true})
+	err := SolrAddDocument(si, mid, "FILE", cells, vparams)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
 	fmt.Print(".")
-
-	//fmt.Println(res.Header)
 
 	return "ok"
 }
 
 // GeneratePdfIndex は、PDF(.pdf)形式のファイルの索引を作る
 // PDFの1ページで Solr の1ドキュメントとする
-func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
+func GeneratePdfIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
 
 	basename := filepath.Base(filename)
 	foldername := filepath.Dir(filename)
@@ -276,22 +251,20 @@ func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, med
 		text = strings.Replace(text, " ", "", -1)
 		//text = rep_space.ReplaceAllString(text, "")
 
-		//fmt.Println(text)
-		cells := []string{text}
+		mid := fmt.Sprintf("%s%d", filename, rindex)
+		//doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
+		vparams := map[string]string{
+			"mediatype":  mediatype,
+			"foldername": foldername,
+			"filename":   basename,
+			"title":      title,
+		}
 
-		id := fmt.Sprintf("%s%d", filename, rindex)
-		doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
-
-		//fmt.Printf("%+v\n", doc)
-		//fmt.Println("try create to solr")
-
-		_, err := slr.Create(ctx, &doc, &solr.WriteOptions{Commit: true})
+		err := SolrAddDocument(si, mid, "FILE", []string{text}, vparams)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
 		fmt.Print(".")
-
-		//fmt.Println(res.Header)
 	})
 
 	return "ok"
@@ -299,7 +272,7 @@ func GeneratePdfIndex(ctx context.Context, slr solr.Client, filename string, med
 
 // GenerateExcelIndex は Excel(.xlsx)形式のファイルの索引を作る
 // Excelの1行で Solr の1ドキュメントとする
-func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, mediatype string, doc *goquery.Document) string {
+func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
 	//TODO:対象外とするシート名の受け渡しは要改良
 	excludesheetnames := []string{"注意書き"}
 
@@ -324,7 +297,7 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 			// Find the review items
 			sheetselection.Find("table tbody tr").Each(func(rindex int, rowselection *goquery.Selection) {
 				// For each item found
-				cells := []string{}
+				var cells []string
 
 				innerselection := rowselection.Find("td")
 				innerselection.Each(func(cindex int, cellsel *goquery.Selection) {
@@ -335,16 +308,20 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 
 				// 情報がある行のみ索引を作成する（空行は索引に含めない）
 				if len(cells) > 0 {
-					id := fmt.Sprintf("%s%s%d", filename, sheetname, rindex)
+					mid := fmt.Sprintf("%s%s%d", filename, sheetname, rindex)
 
-					doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Sheetname: sheetname, Title: title, Contents: cells}
+					vparams := map[string]string{
+						"mediatype":  mediatype,
+						"foldername": foldername,
+						"filename":   basename,
+						"sheetname":  sheetname,
+						"title":      title,
+					}
 
-					//fmt.Printf("%+v\n", doc)
-					//fmt.Println("try create to solr")
-
-					_, err := slr.Create(ctx, &doc, &solr.WriteOptions{Commit: true})
+					err := SolrAddDocument(si, mid, "FILE", cells, vparams)
 					if err != nil {
 						log.Fatal().Err(err)
+						//return err
 					}
 					fmt.Print(".")
 				}
@@ -358,23 +335,18 @@ func GenerateExcelIndex(ctx context.Context, slr solr.Client, filename string, m
 
 func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, solrcorename string) error {
 
-	ctx := context.Background()
-	conn, err := solr.NewConnection(solrserveruri, solrcorename, http.DefaultClient)
+	uri := solrserveruri + "/solr"
+	si, err := solr.NewSolrInterface(uri, solrcorename)
 	if err != nil {
 		log.Fatal().Err(err)
 		return err
 	}
-
-	slr, err := solr.NewSingleClient(conn)
-	if err != nil {
-		log.Fatal().Err(err)
-		return err
-	}
-	err = slr.Ping(ctx)
+	status, qtime, err := si.Ping()
 	if err != nil {
 		fmt.Printf("Solr core ping:ng (%s %s)\n", solrserveruri, solrcorename)
 		return err
 	}
+	log.Debug().Msgf("Solr Ping status:%s qtime:%d\n", status, qtime)
 
 	//Create connection with tika server
 	tikaclient := tika.NewClient(nil, tikaserveruri)
@@ -418,24 +390,31 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		}
 
 		//for debug
-		fmt.Print("@1")
-		fmt.Print(body)
+		//fmt.Print("@1")
+		//fmt.Print(body)
 
 		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {
 		case ".xlsx":
-			GenerateExcelIndex(ctx, slr, filename, contentType, doc)
+			GenerateExcelIndex(si, filename, contentType, doc)
 		case ".pdf":
-			GeneratePdfIndex(ctx, slr, filename, contentType, doc)
+			GeneratePdfIndex(si, filename, contentType, doc)
 		case ".docx":
-			GenerateWordxIndex(ctx, slr, filename, contentType, doc)
+			GenerateWordxIndex(si, filename, contentType, doc)
 		case ".txt":
-			GenerateTextIndex(ctx, slr, filename, contentType, doc)
+			GenerateTextIndex(si, filename, contentType, doc)
 		default:
 			fmt.Printf("\nunknown format: skip [%s]\n", filename)
 		}
 		fmt.Printf("\n")
 		successCount++
+	}
+
+	if si != nil {
+		_, err := si.Commit()
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 
 	fmt.Printf("success_count=%d\n", successCount)
@@ -454,23 +433,28 @@ func netFetch(uri string, filename string, cfg *KENVCONF) (*bytes.Buffer, error)
 		return bytebuf, err
 	}
 
-	defer res.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(res.Body)
 
 	log.Debug().Msgf("%s", res.Header)
 
 	// 読み取り
 	buf, _ := ioutil.ReadAll(res.Body)
 
-	// 文字コード判定
-	//det := chardet.NewTextDetector()
-	//detResult, _ := det.DetectBest(buf)
-
-	// 文字コード変換
 	bReader := bytes.NewReader(buf)
-	//reader, _ := charset.NewReaderLabel(detResult.Charset, bReader)
 
-	io.Copy(bytebuf, bReader)
-	ioutil.WriteFile(filename, bytebuf.Bytes(), os.ModePerm)
+	_, err = io.Copy(bytebuf, bReader)
+	if err != nil {
+		return nil, err
+	}
+	err = ioutil.WriteFile(filename, bytebuf.Bytes(), os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
 
 	return bytebuf, nil
 }
