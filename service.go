@@ -120,12 +120,12 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult,
 
 	q.Start(0)
 	q.Rows(20)
-	/*
-		q.SetParam("hl", "true")
-		q.SetParam("hl.fl", "title")
-		q.SetParam("hl.simple.pre", "<em>")
-		q.SetParam("hl.simple.post", "</em>")
-	*/
+
+	q.SetParam("hl", "true")
+	q.SetParam("hl.fl", "contents")
+	q.SetParam("hl.simple.pre", "<em>")
+	q.SetParam("hl.simple.post", "</em>")
+
 	s := si.Search(q)
 	res, err := s.Result(nil)
 	if err != nil {
@@ -133,7 +133,7 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult,
 		return nil, err
 	}
 
-	log.Info().Msgf("NumFound/FetchDocs/Highlighting:%d/%d/%d\n", res.Results.NumFound, len(res.Results.Docs), len(res.Highlighting))
+	log.Info().Msgf("NumFound/FetchDocs/Highlighting:%d/%d/%d", res.Results.NumFound, len(res.Results.Docs), len(res.Highlighting))
 
 	return res, nil
 }
@@ -447,8 +447,14 @@ func netFetch(uri string, filename string, cfg *KENVCONF) (*bytes.Buffer, error)
 
 	bReader := bytes.NewReader(buf)
 
-	io.Copy(bytebuf, bReader)
-	ioutil.WriteFile(filename, bytebuf.Bytes(), os.ModePerm)
+	_, err = io.Copy(bytebuf, bReader)
+	if err != nil {
+		return nil, err
+	}
+	err = ioutil.WriteFile(filename, bytebuf.Bytes(), os.ModePerm)
+	if err != nil {
+		return nil, err
+	}
 
 	return bytebuf, nil
 }

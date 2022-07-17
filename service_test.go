@@ -25,6 +25,39 @@ func TestExtnameToMediaTypeSuccess(t *testing.T) {
 	}
 }
 
+func TestSolrQuery(t *testing.T) {
+	solrserveruri := "http://localhost:8983"
+	solrcorename := "kassiscore_test"
+	tikaserveruri := "http://localhost:9998"
+
+	err := SolrClearDocument(solrserveruri, solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	dir, _ := os.Getwd()
+	filepathname := filepath.Join(dir, "testdata", "Book1.xlsx")
+
+	files := []string{filepathname}
+	err = ImportFromFile(files, tikaserveruri, solrserveruri, solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	res, err := SolrQuery(solrserveruri, solrcorename, "ぽっぽ焼き")
+	if err != nil {
+		t.Fatal("failed test (query fail")
+	}
+	if res.Results.NumFound != 1 {
+		t.Errorf("failed test (result num found unmatched) Actual numFound=%d", res.Results.NumFound)
+	}
+	for _, v := range res.Highlighting {
+		v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
+		//TODO: ぽっぽ焼き がハイライトさせたい
+		assert.Contains(t, v2, "<em>ぽっぽ</em>")
+	}
+}
+
 func TestImportFromFile(t *testing.T) {
 	solrserveruri := "http://localhost:8983"
 	solrcorename := "kassiscore_test"
@@ -146,7 +179,7 @@ func TestImportFromFile(t *testing.T) {
 		t.Fatal("failed test")
 	}
 
-	SolrClearDocument(solrserveruri, solrcorename)
+	_ = SolrClearDocument(solrserveruri, solrcorename)
 
 	dir, _ = os.Getwd()
 	filepathname1 := filepath.Join(dir, "testdata", "Book1.xlsx")
