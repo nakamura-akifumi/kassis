@@ -589,6 +589,7 @@ func Unzip(src, dest string) error {
 	for _, f := range r.File {
 		rc, err := f.Open()
 		if err != nil {
+			fmt.Println(err)
 			return err
 		}
 		defer rc.Close()
@@ -600,12 +601,14 @@ func Unzip(src, dest string) error {
 			f, err := os.OpenFile(
 				path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
+				fmt.Println(err)
 				return err
 			}
 			defer f.Close()
 
 			_, err = io.Copy(f, rc)
 			if err != nil {
+				fmt.Println(err)
 				return err
 			}
 		}
