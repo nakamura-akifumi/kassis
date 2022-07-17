@@ -139,7 +139,6 @@ func GenerateDefaultConfigSet() {
 		fmt.Println("Solr home:ok", solrhome)
 	}
 
-	solrhome = filepath.Join(solrhome, "tools", "app", "solr-8.11.1")
 	cfg.Solr.Home = solrhome
 
 	var fps []FileProcessor

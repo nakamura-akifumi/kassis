@@ -133,8 +133,8 @@ func SolrServerPing(uri string) (string, error) {
 		vs = doc.Find("[name=\"solr-spec-version\"]").Text()
 		sh = doc.Find("[name=\"solr_home\"]").Text()
 
-		fmt.Printf("solr_home:%s\n", sh)
-		fmt.Printf("solr-spec-version:%s\n", vs)
+		log.Debug().Msgf("solr_home:%s\n", sh)
+		//fmt.Printf("solr-spec-version:%s\n", vs)
 	}
 
 	return vs, nil
