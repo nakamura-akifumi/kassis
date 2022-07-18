@@ -17,12 +17,15 @@ func main() {
 	setupSolr := flag.Bool("setup-solr", false, "setup solr schema")
 	deleteAlldata := flag.Bool("delete-alldata", false, "delete all solr data")
 	startSolr := flag.Bool("start-solr", false, "Start solr")
+	stopSolr := flag.Bool("stop-solr", false, "Stop solr")
 	downloadapp := flag.Bool("download-app", false, "download apps")
 	corename := flag.String("corename", "", "solr corename")
 	flag.Parse()
 
 	fmt.Println("generateDefaultConfigSet:", *generateDefaultConfigSet)
 	fmt.Println("setupSolr:", *setupSolr)
+	fmt.Println("startSolr:", *startSolr)
+	fmt.Println("stopSolr:", *stopSolr)
 	fmt.Println("deleteAlldata:", *deleteAlldata)
 	fmt.Println("downloadapp:", *downloadapp)
 	fmt.Println("corename", *corename)
@@ -51,6 +54,9 @@ func main() {
 	} else if *startSolr == true {
 		cfg := kassiscore.LoadConfig()
 		kassiscore.StartSolr(cfg)
+	} else if *stopSolr == true {
+		cfg := kassiscore.LoadConfig()
+		kassiscore.StopSolr(cfg)
 	} else if *downloadapp == true {
 		kassiscore.DownloadApps()
 	} else {

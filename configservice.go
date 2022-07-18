@@ -105,7 +105,12 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	out, err := os.Create(filepath)
 	if err != nil {
@@ -205,6 +210,31 @@ func StartSolr(cfg *KENVCONF) {
 	} else {
 		fmt.Printf("solr-spec-version:%s\n", vs)
 	}
+}
+
+func StopSolr(cfg *KENVCONF) {
+	fmt.Println("stop solr.")
+
+	solrbin := filepath.Join(cfg.Solr.Home, "bin")
+	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr bin:ng", solrbin)
+	} else {
+		fmt.Println("Solr bin:ok", solrbin)
+	}
+
+	//TODO: ポート指定をする
+	solrcmd := filepath.Join(cfg.Solr.Home, "bin", "solr")
+	cmd := exec.Command(solrcmd, "stop -all")
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("error", err.Error())
+		return
+	}
+	waittimesec := 5
+
+	fmt.Printf("wait time %dsec\n", waittimesec)
+	time.Sleep(time.Second * time.Duration(waittimesec))
+	fmt.Println("ProcessID:", cmd.Process.Pid)
 }
 
 func SetupSolr(corename string) error {
@@ -592,7 +622,6 @@ func Unzip(src, dest string) error {
 			fmt.Println(err)
 			return err
 		}
-		defer rc.Close()
 
 		path := filepath.Join(dest, f.Name)
 		if f.FileInfo().IsDir() {
@@ -602,16 +631,21 @@ func Unzip(src, dest string) error {
 				path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				fmt.Println(err)
+				rc.Close()
+				f.Close()
 				return err
 			}
-			defer f.Close()
 
 			_, err = io.Copy(f, rc)
 			if err != nil {
 				fmt.Println(err)
+				rc.Close()
+				f.Close()
 				return err
 			}
+			f.Close()
 		}
+		rc.Close()
 	}
 
 	return nil
