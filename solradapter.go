@@ -111,7 +111,7 @@ func SolrServerPing(uri string) (string, error) {
 	uri = uri + "/solr/admin/info/system?wt=xml"
 	resp, err := http.Get(uri)
 	if err != nil {
-		fmt.Printf("error: %s\n", err.Error())
+		//fmt.Printf("error: %s\n", err.Error())
 		return "", err
 	} else {
 		defer func(Body io.ReadCloser) {

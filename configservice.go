@@ -400,6 +400,15 @@ func CheckConfigAndConnections() (string, error) {
 	if err != nil {
 		fmt.Printf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	} else {
+		//admin core
+		vs, err := SolrServerPing(cfg.Solr.Serveruri)
+		if err != nil {
+			fmt.Printf("Solr admincore:"+NGLBL+" error: %s\n", err.Error())
+		} else {
+			fmt.Printf("Solr admincore:"+OKLBL+" solr-spec-version:%s\n", vs)
+		}
+
+		//core check
 		_, qtime, err := si.Ping()
 		if err != nil {
 			fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
