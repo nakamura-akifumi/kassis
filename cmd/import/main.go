@@ -21,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	files := []string{}
+	var files []string
 
 	if f, err := os.Stat(flag.Arg(0)); os.IsNotExist(err) || f.IsDir() {
 		// 指定の引数は存在するディレクトリ？

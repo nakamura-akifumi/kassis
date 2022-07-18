@@ -116,7 +116,12 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(out)
 
 	_, err = io.Copy(out, resp.Body)
 	return err
@@ -168,7 +173,12 @@ func GenerateDefaultConfigSet() {
 		log.Err(err)
 		return
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(f)
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "    ")
@@ -224,17 +234,13 @@ func StopSolr(cfg *KENVCONF) {
 
 	//TODO: ポート指定をする
 	solrcmd := filepath.Join(cfg.Solr.Home, "bin", "solr")
-	cmd := exec.Command(solrcmd, "stop -all")
-	err := cmd.Start()
+	cmd, err := exec.Command(solrcmd, "stop", "-all", "-V").Output()
+	//err := cmd.Start()
 	if err != nil {
 		fmt.Println("error", err.Error())
 		return
 	}
-	waittimesec := 5
-
-	fmt.Printf("wait time %dsec\n", waittimesec)
-	time.Sleep(time.Second * time.Duration(waittimesec))
-	fmt.Println("ProcessID:", cmd.Process.Pid)
+	fmt.Println(string(cmd))
 }
 
 func SetupSolr(corename string) error {
@@ -364,10 +370,10 @@ func CheckConfigAndConnections() (string, error) {
 	// step3 : check java
 	out, err := exec.Command("java", "--version").Output()
 	if err != nil {
-		fmt.Println("Java command:ng")
+		fmt.Println("Java command:" + NGLBL)
 		fmt.Println(err.Error())
 	} else {
-		fmt.Println("Java command:ok")
+		fmt.Println("Java command:" + OKLBL)
 		fmt.Println("---")
 		fmt.Println(string(out))
 		fmt.Println("---")
@@ -376,27 +382,28 @@ func CheckConfigAndConnections() (string, error) {
 	// step4 : check solr
 	solrhome := filepath.Join(cfg.Solr.Home)
 	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Println("Solr home:ng", solrhome)
+		fmt.Printf("Solr home:"+NGLBL+" %s\n", solrhome)
 	} else {
-		fmt.Println("Solr home:ok", solrhome)
+		fmt.Printf("Solr home:"+OKLBL+" %s\n", solrhome)
 	}
 
 	solrbin := filepath.Join(cfg.Solr.Home, "bin")
 	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Println("Solr bin:ng", solrbin)
+		fmt.Printf("Solr bin:"+NGLBL+" %s\n", solrbin)
 	} else {
-		fmt.Println("Solr bin:ok", solrbin)
+		fmt.Printf("Solr bin:"+OKLBL+" %s\n", solrbin)
 	}
 
 	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
 	if f, err := os.Stat(defaultsolrconfigset); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Println("Solr default config set:ng ", defaultsolrconfigset)
+		fmt.Printf("Solr default config set:"+NGLBL+" %s\n", defaultsolrconfigset)
 	} else {
-		fmt.Println("Solr default config set:ok ", defaultsolrconfigset)
+		fmt.Printf("Solr default config set:"+OKLBL+" %s\n", defaultsolrconfigset)
 	}
 
 	// step5 : check solr
-	si, err := solr.NewSolrInterface(cfg.Solr.Serveruri, cfg.Solr.Corename)
+	uri := cfg.Solr.Serveruri + "/solr"
+	si, err := solr.NewSolrInterface(uri, cfg.Solr.Corename)
 	if err != nil {
 		fmt.Printf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	} else {
