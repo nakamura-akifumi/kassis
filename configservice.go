@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -31,6 +32,7 @@ type FileProcessor struct {
 }
 
 type KENVCONF struct {
+	HomeDir   string `json:"homeDir"`
 	ExtDir    string `json:"extDir"`
 	ExtAppDir string `json:"extAppDir"`
 	WebServer struct {
@@ -42,6 +44,7 @@ type KENVCONF struct {
 		Corename  string `json:"corename"`
 	} `json:"solr"`
 	Tika struct {
+		Home      string `json:"home"`
 		Serveruri string `json:"serveruri"`
 	} `json:"tika"`
 	Files []FileProcessor `json:"files"`
@@ -136,20 +139,20 @@ func GenerateDefaultConfigSet() {
 	cfg.WebServer.Listen = ":1323"
 	cfg.ExtDir = "ext"
 
-	toolhome, _ := os.Getwd()
-	toolhome = filepath.Join(toolhome, "tools")
-	apphome := filepath.Join(toolhome, "app")
+	toolshome, _ := os.Getwd()
+	toolshome = filepath.Join(toolshome, "tools")
+	apphome := filepath.Join(toolshome, "app")
 
 	cfg.ExtAppDir = apphome
 
 	solrhome := filepath.Join(apphome, "solr-8.11.2")
 	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
 		fmt.Println("Solr home:ng", solrhome)
-	} else {
-		fmt.Println("Solr home:ok", solrhome)
 	}
 
 	cfg.Solr.Home = solrhome
+
+	cfg.Tika.Home = apphome
 
 	var fps []FileProcessor
 	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})
@@ -243,6 +246,108 @@ func StopSolr(cfg *KENVCONF) {
 	fmt.Println(string(cmd))
 }
 
+func StartTika(cfg *KENVCONF) error {
+	fmt.Println("start tika.")
+
+	javahome := os.Getenv("JAVA_HOME")
+	javaexe := filepath.Join(javahome, "bin", "java.exe")
+	tikajar := filepath.Join(cfg.Tika.Home, "tika-server-standard-2.4.1.jar")
+	tikalogpath := filepath.Join(cfg.ExtAppDir, "tika.log")
+
+	c := []string{javaexe, "-jar", tikajar, "2>&1", tikalogpath}
+	cmd := exec.Command(c[0], c[1:]...)
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("error", err.Error())
+		return err
+	}
+	waittimesec := 5
+
+	fmt.Printf("wait time %dsec\n", waittimesec)
+	time.Sleep(time.Second * time.Duration(waittimesec))
+	fmt.Println("ProcessID:", cmd.Process.Pid)
+
+	pidfile := filepath.Join(cfg.Tika.Home, "tika.pid")
+	fmt.Println(pidfile)
+	file, err := os.Create(pidfile)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	_, err = file.WriteString(strconv.Itoa(cmd.Process.Pid))
+	if err != nil {
+		return err
+	}
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	vs, err := TikaPing(cfg.Tika.Serveruri)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	} else {
+		fmt.Printf("Tika version is:%s\n", vs)
+	}
+	return nil
+}
+
+func StopTika(cfg *KENVCONF) error {
+	fmt.Println("stop tika.")
+
+	pidfile := filepath.Join(cfg.Tika.Home, "tika.pid")
+	fmt.Println(pidfile)
+
+	file, err := os.Open(pidfile)
+	if err != nil {
+		return err
+	}
+
+	pids := ""
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		pids = scanner.Text()
+		fmt.Println(pids)
+		break
+	}
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	if pids == "" {
+		return fmt.Errorf("pid file is empty")
+	}
+
+	pid, err := strconv.Atoi(pids)
+	if err != nil {
+		return err
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	err = process.Kill()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	err = os.Remove(pidfile)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func SetupSolr(corename string) error {
 	fmt.Println("start setup solr.")
 	fmt.Printf("corenname:%s\n", corename)
@@ -295,7 +400,6 @@ func SetupSolr(corename string) error {
 	fmt.Printf("create core\n")
 	params := &url.Values{}
 	params.Add("name", corename)
-	//params.Add("instanceDir", corename)
 	//params.Add("config", "solrconfig.xml")
 	//params.Add("dataDir", "data")
 	_, err = ca.Action("CREATE", params)
@@ -340,7 +444,7 @@ func SetupSolr(corename string) error {
 	return nil
 }
 
-func CheckConfigAndConnections() (string, error) {
+func CheckConfigAndConnections() {
 
 	fmt.Println("check start")
 
@@ -348,7 +452,7 @@ func CheckConfigAndConnections() (string, error) {
 	filename, err := getConfigPath()
 	if err != nil {
 		fmt.Printf("read config file:ng\n")
-		return "", err
+		return
 	}
 
 	fmt.Printf("read config file:ok\n")
@@ -427,18 +531,30 @@ func CheckConfigAndConnections() (string, error) {
 	}
 
 	// step6 : check tika
-	client := tika.NewClient(nil, cfg.Tika.Serveruri)
+	vs, err := TikaPing(cfg.Tika.Serveruri)
+	if err != nil {
+		fmt.Printf("Tika ping:"+NGLBL+" (%s) %s\n", cfg.Tika.Serveruri, err)
+	} else {
+		fmt.Printf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs)
+	}
+}
+
+func TikaPing(tikauri string) (string, error) {
+
+	var err error
+	vs := ""
+
+	client := tika.NewClient(nil, tikauri)
 	if client != nil {
-		vs, err := client.Version(context.Background())
+		vs, err = client.Version(context.Background())
 		if err != nil {
-			fmt.Printf("Tika ping:"+NGLBL+" (%s( %s\n", cfg.Tika.Serveruri, err)
-		} else {
-			fmt.Printf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs)
+			return "", err
 		}
 	} else {
-		fmt.Printf("Tika ping:"+NGLBL+" (%s)\n", cfg.Tika.Serveruri)
+		return "", fmt.Errorf("unable to create an instance of the new tika client")
 	}
-	return "", nil
+
+	return vs, nil
 }
 
 func LoadConfig() *KENVCONF {
@@ -514,7 +630,12 @@ func loadConfig(fname string) (*KENVCONF, error) {
 		log.Fatal().Err(err).Msg("can not load config file")
 		return nil, err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(f)
 
 	var cfg KENVCONF
 	err = json.NewDecoder(f).Decode(&cfg)
@@ -555,6 +676,7 @@ func CopyDirectory(scrDir, dest string) error {
 				return err
 			}
 		default:
+
 			if err := Copy(sourcePath, destPath); err != nil {
 				return err
 			}
