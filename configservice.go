@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -31,6 +32,7 @@ type FileProcessor struct {
 }
 
 type KENVCONF struct {
+	HomeDir   string `json:"homeDir"`
 	ExtDir    string `json:"extDir"`
 	ExtAppDir string `json:"extAppDir"`
 	WebServer struct {
@@ -42,6 +44,7 @@ type KENVCONF struct {
 		Corename  string `json:"corename"`
 	} `json:"solr"`
 	Tika struct {
+		Home      string `json:"home"`
 		Serveruri string `json:"serveruri"`
 	} `json:"tika"`
 	Files []FileProcessor `json:"files"`
@@ -105,13 +108,23 @@ func DownloadFile(filepath string, url string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resp.Body)
 
 	out, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(out)
 
 	_, err = io.Copy(out, resp.Body)
 	return err
@@ -126,20 +139,20 @@ func GenerateDefaultConfigSet() {
 	cfg.WebServer.Listen = ":1323"
 	cfg.ExtDir = "ext"
 
-	toolhome, _ := os.Getwd()
-	toolhome = filepath.Join(toolhome, "tools")
-	apphome := filepath.Join(toolhome, "app")
+	toolshome, _ := os.Getwd()
+	toolshome = filepath.Join(toolshome, "tools")
+	apphome := filepath.Join(toolshome, "app")
 
 	cfg.ExtAppDir = apphome
 
 	solrhome := filepath.Join(apphome, "solr-8.11.2")
 	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
 		fmt.Println("Solr home:ng", solrhome)
-	} else {
-		fmt.Println("Solr home:ok", solrhome)
 	}
 
 	cfg.Solr.Home = solrhome
+
+	cfg.Tika.Home = apphome
 
 	var fps []FileProcessor
 	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})
@@ -163,7 +176,12 @@ func GenerateDefaultConfigSet() {
 		log.Err(err)
 		return
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(f)
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "    ")
@@ -205,6 +223,129 @@ func StartSolr(cfg *KENVCONF) {
 	} else {
 		fmt.Printf("solr-spec-version:%s\n", vs)
 	}
+}
+
+func StopSolr(cfg *KENVCONF) {
+	fmt.Println("stop solr.")
+
+	solrbin := filepath.Join(cfg.Solr.Home, "bin")
+	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
+		fmt.Println("Solr bin:ng", solrbin)
+	} else {
+		fmt.Println("Solr bin:ok", solrbin)
+	}
+
+	//TODO: ポート指定をする
+	solrcmd := filepath.Join(cfg.Solr.Home, "bin", "solr")
+	cmd, err := exec.Command(solrcmd, "stop", "-all", "-V").Output()
+	//err := cmd.Start()
+	if err != nil {
+		fmt.Println("error", err.Error())
+		return
+	}
+	fmt.Println(string(cmd))
+}
+
+func StartTika(cfg *KENVCONF) error {
+	fmt.Println("start tika.")
+
+	javahome := os.Getenv("JAVA_HOME")
+	javaexe := filepath.Join(javahome, "bin", "java.exe")
+	tikajar := filepath.Join(cfg.Tika.Home, "tika-server-standard-2.4.1.jar")
+	tikalogpath := filepath.Join(cfg.ExtAppDir, "tika.log")
+
+	c := []string{javaexe, "-jar", tikajar, "2>&1", tikalogpath}
+	cmd := exec.Command(c[0], c[1:]...)
+	err := cmd.Start()
+	if err != nil {
+		fmt.Println("error", err.Error())
+		return err
+	}
+	waittimesec := 5
+
+	fmt.Printf("wait time %dsec\n", waittimesec)
+	time.Sleep(time.Second * time.Duration(waittimesec))
+	fmt.Println("ProcessID:", cmd.Process.Pid)
+
+	pidfile := filepath.Join(cfg.Tika.Home, "tika.pid")
+	fmt.Println(pidfile)
+	file, err := os.Create(pidfile)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	_, err = file.WriteString(strconv.Itoa(cmd.Process.Pid))
+	if err != nil {
+		return err
+	}
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	vs, err := TikaPing(cfg.Tika.Serveruri)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	} else {
+		fmt.Printf("Tika version is:%s\n", vs)
+	}
+	return nil
+}
+
+func StopTika(cfg *KENVCONF) error {
+	fmt.Println("stop tika.")
+
+	pidfile := filepath.Join(cfg.Tika.Home, "tika.pid")
+	fmt.Println(pidfile)
+
+	file, err := os.Open(pidfile)
+	if err != nil {
+		return err
+	}
+
+	pids := ""
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		pids = scanner.Text()
+		fmt.Println(pids)
+		break
+	}
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+
+	if pids == "" {
+		return fmt.Errorf("pid file is empty")
+	}
+
+	pid, err := strconv.Atoi(pids)
+	if err != nil {
+		return err
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	err = process.Kill()
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	err = os.Remove(pidfile)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func SetupSolr(corename string) error {
@@ -259,7 +400,6 @@ func SetupSolr(corename string) error {
 	fmt.Printf("create core\n")
 	params := &url.Values{}
 	params.Add("name", corename)
-	//params.Add("instanceDir", corename)
 	//params.Add("config", "solrconfig.xml")
 	//params.Add("dataDir", "data")
 	_, err = ca.Action("CREATE", params)
@@ -304,7 +444,7 @@ func SetupSolr(corename string) error {
 	return nil
 }
 
-func CheckConfigAndConnections() (string, error) {
+func CheckConfigAndConnections() {
 
 	fmt.Println("check start")
 
@@ -312,7 +452,7 @@ func CheckConfigAndConnections() (string, error) {
 	filename, err := getConfigPath()
 	if err != nil {
 		fmt.Printf("read config file:ng\n")
-		return "", err
+		return
 	}
 
 	fmt.Printf("read config file:ok\n")
@@ -334,10 +474,10 @@ func CheckConfigAndConnections() (string, error) {
 	// step3 : check java
 	out, err := exec.Command("java", "--version").Output()
 	if err != nil {
-		fmt.Println("Java command:ng")
+		fmt.Println("Java command:" + NGLBL)
 		fmt.Println(err.Error())
 	} else {
-		fmt.Println("Java command:ok")
+		fmt.Println("Java command:" + OKLBL)
 		fmt.Println("---")
 		fmt.Println(string(out))
 		fmt.Println("---")
@@ -346,30 +486,40 @@ func CheckConfigAndConnections() (string, error) {
 	// step4 : check solr
 	solrhome := filepath.Join(cfg.Solr.Home)
 	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Println("Solr home:ng", solrhome)
+		fmt.Printf("Solr home:"+NGLBL+" %s\n", solrhome)
 	} else {
-		fmt.Println("Solr home:ok", solrhome)
+		fmt.Printf("Solr home:"+OKLBL+" %s\n", solrhome)
 	}
 
 	solrbin := filepath.Join(cfg.Solr.Home, "bin")
 	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Println("Solr bin:ng", solrbin)
+		fmt.Printf("Solr bin:"+NGLBL+" %s\n", solrbin)
 	} else {
-		fmt.Println("Solr bin:ok", solrbin)
+		fmt.Printf("Solr bin:"+OKLBL+" %s\n", solrbin)
 	}
 
 	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
 	if f, err := os.Stat(defaultsolrconfigset); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Println("Solr default config set:ng ", defaultsolrconfigset)
+		fmt.Printf("Solr default config set:"+NGLBL+" %s\n", defaultsolrconfigset)
 	} else {
-		fmt.Println("Solr default config set:ok ", defaultsolrconfigset)
+		fmt.Printf("Solr default config set:"+OKLBL+" %s\n", defaultsolrconfigset)
 	}
 
 	// step5 : check solr
-	si, err := solr.NewSolrInterface(cfg.Solr.Serveruri, cfg.Solr.Corename)
+	uri := cfg.Solr.Serveruri + "/solr"
+	si, err := solr.NewSolrInterface(uri, cfg.Solr.Corename)
 	if err != nil {
 		fmt.Printf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
 	} else {
+		//admin core
+		vs, err := SolrServerPing(cfg.Solr.Serveruri)
+		if err != nil {
+			fmt.Printf("Solr admincore:"+NGLBL+" error: %s\n", err.Error())
+		} else {
+			fmt.Printf("Solr admincore:"+OKLBL+" solr-spec-version:%s\n", vs)
+		}
+
+		//core check
 		_, qtime, err := si.Ping()
 		if err != nil {
 			fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
@@ -381,18 +531,30 @@ func CheckConfigAndConnections() (string, error) {
 	}
 
 	// step6 : check tika
-	client := tika.NewClient(nil, cfg.Tika.Serveruri)
+	vs, err := TikaPing(cfg.Tika.Serveruri)
+	if err != nil {
+		fmt.Printf("Tika ping:"+NGLBL+" (%s) %s\n", cfg.Tika.Serveruri, err)
+	} else {
+		fmt.Printf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs)
+	}
+}
+
+func TikaPing(tikauri string) (string, error) {
+
+	var err error
+	vs := ""
+
+	client := tika.NewClient(nil, tikauri)
 	if client != nil {
-		vs, err := client.Version(context.Background())
+		vs, err = client.Version(context.Background())
 		if err != nil {
-			fmt.Printf("Tika ping:"+NGLBL+" (%s( %s\n", cfg.Tika.Serveruri, err)
-		} else {
-			fmt.Printf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs)
+			return "", err
 		}
 	} else {
-		fmt.Printf("Tika ping:"+NGLBL+" (%s)\n", cfg.Tika.Serveruri)
+		return "", fmt.Errorf("unable to create an instance of the new tika client")
 	}
-	return "", nil
+
+	return vs, nil
 }
 
 func LoadConfig() *KENVCONF {
@@ -468,7 +630,12 @@ func loadConfig(fname string) (*KENVCONF, error) {
 		log.Fatal().Err(err).Msg("can not load config file")
 		return nil, err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(f)
 
 	var cfg KENVCONF
 	err = json.NewDecoder(f).Decode(&cfg)
@@ -509,6 +676,7 @@ func CopyDirectory(scrDir, dest string) error {
 				return err
 			}
 		default:
+
 			if err := Copy(sourcePath, destPath); err != nil {
 				return err
 			}
@@ -592,7 +760,6 @@ func Unzip(src, dest string) error {
 			fmt.Println(err)
 			return err
 		}
-		defer rc.Close()
 
 		path := filepath.Join(dest, f.Name)
 		if f.FileInfo().IsDir() {
@@ -602,16 +769,21 @@ func Unzip(src, dest string) error {
 				path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				fmt.Println(err)
+				rc.Close()
+				f.Close()
 				return err
 			}
-			defer f.Close()
 
 			_, err = io.Copy(f, rc)
 			if err != nil {
 				fmt.Println(err)
+				rc.Close()
+				f.Close()
 				return err
 			}
+			f.Close()
 		}
+		rc.Close()
 	}
 
 	return nil

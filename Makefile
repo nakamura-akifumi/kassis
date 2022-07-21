@@ -62,3 +62,4 @@ clean:
 # 実ビルドタスク
 $(BINARIES): $(GO_FILES) $(GOPB_FILES) VERSION .git/HEAD
 	@go build -o $@ $(GO_BUILD) $(@:$(BINDIR)/%=$(ROOT_PACKAGE)/cmd/%)
+
