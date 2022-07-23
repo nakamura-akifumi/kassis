@@ -1,40 +1,54 @@
 # kassis
 
-PDFやらエクセルファイルなどを検索するためのアプリです。
+本アプリ（kassis) は、PDFやらエクセルファイルなどを検索するためのものです。
+
+### 概要
+
+ファイルを読んで索引化し、ブラウザで検索することが出来ます。
+
+サポートしているファイルは以下のフォーマットです。
+- Excel (拡張子xlsx)
+- Word (拡張子docx)
+- PDF (拡張子pdf)
+- Text (拡張子txt)
+
+### 読み
+
+「カシス」です。カシスオレンジ(Cassis and Orange)のカシスと同じです。
 
 # 必要なもの
 
 - Java Runtime Environment (JRE) version 1.8 以上
-- Apache Solr 8.11.x
-- Apache Tika 2.4.x
+- Go 1.18
 - OS： 以下動作確認済み
   - Windows系: Windows 11
   - Linux系: Ubuntu Server 22.04 LTS
-- Go 1.18.x
 
-# 実行環境の構築方法 
+MAC OS X 系については、確認環境が無いため不明ですが、たぶん動くかと。
 
-## Ubuntu 22.04 LTS 向け
+以下のミドルウェアは、準備段階で本アプリがダウンロードします。
+既存で構築していあるものに追加は可能です。
+- Apache Solr 8.11.x
+- Apache Tika 2.4.x (standard server版）
 
-### 準備
+検索および結果を見るためにはブラウザが必要です。
+- Google Chrome 最新版
+（Firefox や Edge では確認していません）
+
+# 環境構築
+
+## 準備その１
+
+### Ubuntu 22.04 LTS 向け
 
 ```shell
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y openjdk-17-jre-headless
 sudo apt install -y golang-go
 sudo apt install -y git
-git clone https://github.com/nakamura-akifumi/kassis.git
-cd kasis
-go run cmd/configrator/main.go -generate-default-configset
-go run cmd/configrator/main.go -download-app
-go run cmd/configrator/main.go -start-solr
-go run cmd/configrator/main.go -setup-solr
-go run cmd/configrator/main.go -start-tika
 ```
 
-## Windows 11
-
-### 準備
+### Windows 11 向け
 
 - JDK のインストール
   - 以下のページより JDK 17 をダウンロードする（ファイル名：jdk-17.0.3.1_windows-x64_bin.msi）
@@ -54,16 +68,38 @@ go run cmd/configrator/main.go -start-tika
 - ここまでにインストールしたアプリケーションがインストールされているかを確認する。
   - コマンドプロンプトを起動し、java と go が起動するか確認する。
 
-## 開発中のメモ
+## 準備その２
 
-solrのデータ再構築手順
+本アプリ（kassis） をダウンロードし、設定を行います。
+ミドルウェアである Apache Tika と Apache Solr は、ダウンロードされます。
+
+```
+git clone https://github.com/nakamura-akifumi/kassis.git
+cd kasis
+go run cmd/configrator/main.go -generate-default-configset
+go run cmd/configrator/main.go -download-app
+go run cmd/configrator/main.go -start-solr
+go run cmd/configrator/main.go -setup-solr
+go run cmd/configrator/main.go -start-tika
+```
+
+# 実行
+
+## ファイルのインポート
+
+## ウェブインターフェイス
+
+
+## 技術的内容
+
+### solrのデータ再構築手順
 
 ```shell
 .\bin\solr delete -c kassiscore
 .\bin\configurator -setup-solr
 ```
 
-（ディレクトリ構成図を書く）
+### ディレクトリ構成図
 - root
   - bin
   - config
@@ -73,17 +109,13 @@ solrのデータ再構築手順
     - public
     - views
 
-# 実行方法
-
-```
-$ go run cmd/import/main.go
-```
+### データフロー
+（あとで記載予定）
 
 # 開発およびビルド方法
 
 実行環境に加えて以下のものを準備する必要がある
 
-- Go 1.17以上（開発者は1.17.8で実装と単体試験）
   (windowsで実行する場合は以下のツールが必要)
 - Git Bash
 - Make for windows
