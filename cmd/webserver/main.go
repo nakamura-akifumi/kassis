@@ -64,23 +64,21 @@ func (t *Renderer) Render(w io.Writer, name string, data interface{}, c echo.Con
 	return t.template.ExecuteTemplate(w, name, data)
 }
 
-func NewRouter() *echo.Echo {
+func NewRouter(homedir string) *echo.Echo {
 	e := echo.New()
 
-	templateDir, _ := os.Getwd()
-	templateFiles := filepath.Join(templateDir, "web", "views", "*.html")
+	templateFiles := filepath.Join(homedir, "web", "views", "*.html")
 
 	e.Renderer = NewRenderer(templateFiles, true)
 
 	//g := e.Group("/admin")
 	//g := e.Group("/api")
 
-	staticfilepath, _ := os.Getwd()
-	staticfilepath = filepath.Join(staticfilepath, "web", "assets")
+	staticfilepath := filepath.Join(homedir, "web", "assets")
 	e.Static("/static", staticfilepath)
-	e.File("/", "public/index.html")
+	publicfilepath := filepath.Join(homedir, "web", "public", "index.html")
+	e.File("/", publicfilepath)
 
-	e.GET("/api/materials", kassiscore.HandlerGetApiMaterials)
 	e.GET("/materials", kassiscore.HandlerGetMaterials)
 
 	return e
@@ -90,10 +88,10 @@ func main() {
 	log.Info().Msgf("Start WebServer: version %s  (Revison:%s)\n", kassiscore.VERSION, kassiscore.REVISION)
 	cfg := kassiscore.LoadConfig()
 
-	listenstr := flag.String("listen", cfg.WebServer.Listen, "listrn address and port")
+	listenstr := flag.String("listen", cfg.WebServer.Listen, "listen address and port")
 	flag.Parse()
 
-	router := NewRouter()
+	router := NewRouter(cfg.HomeDir)
 	router.HideBanner = true
 	router.HidePort = false
 

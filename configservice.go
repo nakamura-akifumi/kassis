@@ -139,10 +139,12 @@ func GenerateDefaultConfigSet() {
 	cfg.WebServer.Listen = ":1323"
 	cfg.ExtDir = "ext"
 
+	homedir, _ := os.Getwd()
 	toolshome, _ := os.Getwd()
 	toolshome = filepath.Join(toolshome, "tools")
 	apphome := filepath.Join(toolshome, "app")
 
+	cfg.HomeDir = homedir
 	cfg.ExtAppDir = apphome
 
 	solrhome := filepath.Join(apphome, "solr-8.11.2")
