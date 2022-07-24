@@ -64,19 +64,20 @@ func (t *Renderer) Render(w io.Writer, name string, data interface{}, c echo.Con
 	return t.template.ExecuteTemplate(w, name, data)
 }
 
-func NewRouter(homedir string) *echo.Echo {
+func NewRouter(rootdir string) *echo.Echo {
 	e := echo.New()
 
-	templateFiles := filepath.Join(homedir, "web", "views", "*.html")
+	templateFiles := filepath.Join(rootdir, "web", "views", "*.html")
 
 	e.Renderer = NewRenderer(templateFiles, true)
 
 	//g := e.Group("/admin")
 	//g := e.Group("/api")
 
-	staticfilepath := filepath.Join(homedir, "web", "assets")
+	staticfilepath := filepath.Join(rootdir, "web", "assets")
+
 	e.Static("/static", staticfilepath)
-	publicfilepath := filepath.Join(homedir, "web", "public", "index.html")
+	publicfilepath := filepath.Join(rootdir, "web", "public", "index.html")
 	e.File("/", publicfilepath)
 
 	e.GET("/materials", kassiscore.HandlerGetMaterials)

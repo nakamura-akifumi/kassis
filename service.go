@@ -20,6 +20,7 @@ import (
 
 type Material struct {
 	ID         string   `json:"id"`
+	MaterialID string   `json:"materialid"`
 	ObjectType string   `json:"objecttype"`
 	Foldername string   `json:"foldername"`
 	Filename   string   `json:"filename"`
@@ -50,8 +51,8 @@ const ContenttypePdf string = "application/pdf"
 const ContenttypeText string = "text/plain"
 const ContenttypeWord string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-//配列の中に特定の文字列が含まれるかを返す
-func arrayContains(arr []string, str string) bool {
+// ArrayContains は、配列の中に特定の文字列が含まれるかを返す
+func ArrayContains(arr []string, str string) bool {
 	for _, v := range arr {
 		if v == str {
 			return true
@@ -292,7 +293,7 @@ func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype strin
 	doc.Find("body div").Each(func(rindex int, sheetselection *goquery.Selection) {
 		sheetname := sheetselection.Find("h1").Text()
 
-		if !arrayContains(excludesheetnames, sheetname) {
+		if !ArrayContains(excludesheetnames, sheetname) {
 
 			// Find the review items
 			sheetselection.Find("table tbody tr").Each(func(rindex int, rowselection *goquery.Selection) {

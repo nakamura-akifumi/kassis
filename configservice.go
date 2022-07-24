@@ -23,6 +23,12 @@ import (
 )
 
 var ConfigFileName = "config.json"
+var DisplayModeOnCheckFunction = "error-only"
+
+const (
+	MSGINFO  = false
+	MSGERROR = true
+)
 
 //var SolrFolders = []string{"solr-8.11.2", "solr-8.11.1", "solr-8.11", "solr-8", "solr"}
 
@@ -311,7 +317,7 @@ func StopTika(cfg *KENVCONF) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		pids = scanner.Text()
-		fmt.Println(pids)
+		//fmt.Println(pids)
 		break
 	}
 	err = file.Close()
@@ -446,21 +452,31 @@ func SetupSolr(corename string) error {
 	return nil
 }
 
-func CheckConfigAndConnections() {
+func dism(msg string, isError bool) {
+	if isError || DisplayModeOnCheckFunction == "full" {
+		fmt.Print(msg)
+	}
+}
 
-	fmt.Println("check start")
+// CheckConfigAndConnections は、設定が正しいかをチェックする関数です。
+// display mode : full or error-only
+func CheckConfigAndConnections(displaymode string) {
+
+	DisplayModeOnCheckFunction = displaymode
+
+	fmt.Printf("check start: %s\n", DisplayModeOnCheckFunction)
 
 	// step1:config
 	filename, err := getConfigPath()
 	if err != nil {
-		fmt.Printf("read config file:ng\n")
+		dism("read config file:"+NGLBL+"\n", MSGERROR)
 		return
 	}
 
-	fmt.Printf("read config file:ok\n")
+	dism("read config file:"+OKLBL+"\n", MSGINFO)
 
 	cfg, _ := loadConfig(filename)
-	fmt.Printf("config file load and parse:ok\n")
+	dism(fmt.Sprintf("config file load and parse:"+OKLBL+"\n"), MSGINFO)
 
 	// step2 : check ext folder
 	extdirname, _ := os.Getwd()
@@ -468,65 +484,65 @@ func CheckConfigAndConnections() {
 
 	f, err := os.Stat(extdirname)
 	if err == nil && f.IsDir() {
-		fmt.Printf("ext dirname:ok (%s)\n", extdirname)
+		dism(fmt.Sprintf("ext dirname:"+OKLBL+" (%s)\n", extdirname), MSGINFO)
 	} else {
-		fmt.Printf("ext dirname:ng (%s)\n", extdirname)
+		dism(fmt.Sprintf("ext dirname:"+NGLBL+" (%s)\n", extdirname), MSGERROR)
 	}
 
 	// step3 : check java
 	out, err := exec.Command("java", "--version").Output()
 	if err != nil {
-		fmt.Println("Java command:" + NGLBL)
-		fmt.Println(err.Error())
+		dism("Java command:"+NGLBL+"\n", MSGERROR)
+		dism(err.Error(), MSGERROR)
 	} else {
-		fmt.Println("Java command:" + OKLBL)
-		fmt.Println("---")
-		fmt.Println(string(out))
-		fmt.Println("---")
+		dism("Java command:"+OKLBL+"\n", MSGINFO)
+		dism("---\n", MSGINFO)
+		dism(string(out)+"\n", MSGINFO)
+		dism("---\n", MSGINFO)
 	}
 
 	// step4 : check solr
 	solrhome := filepath.Join(cfg.Solr.Home)
 	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Printf("Solr home:"+NGLBL+" %s\n", solrhome)
+		dism(fmt.Sprintf("Solr home:"+NGLBL+" %s\n", solrhome), MSGERROR)
 	} else {
-		fmt.Printf("Solr home:"+OKLBL+" %s\n", solrhome)
+		dism(fmt.Sprintf("Solr home:"+OKLBL+" %s\n", solrhome), MSGINFO)
 	}
 
 	solrbin := filepath.Join(cfg.Solr.Home, "bin")
 	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Printf("Solr bin:"+NGLBL+" %s\n", solrbin)
+		dism(fmt.Sprintf("Solr bin:"+NGLBL+" %s\n", solrbin), MSGERROR)
 	} else {
-		fmt.Printf("Solr bin:"+OKLBL+" %s\n", solrbin)
+		dism(fmt.Sprintf("Solr bin:"+OKLBL+" %s\n", solrbin), MSGINFO)
 	}
 
 	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
 	if f, err := os.Stat(defaultsolrconfigset); os.IsNotExist(err) || !f.IsDir() {
-		fmt.Printf("Solr default config set:"+NGLBL+" %s\n", defaultsolrconfigset)
+		dism(fmt.Sprintf("Solr default config set:"+NGLBL+" %s\n", defaultsolrconfigset), MSGERROR)
 	} else {
-		fmt.Printf("Solr default config set:"+OKLBL+" %s\n", defaultsolrconfigset)
+		dism(fmt.Sprintf("Solr default config set:"+OKLBL+" %s\n", defaultsolrconfigset), MSGINFO)
 	}
 
 	// step5 : check solr
 	uri := cfg.Solr.Serveruri + "/solr"
 	si, err := solr.NewSolrInterface(uri, cfg.Solr.Corename)
 	if err != nil {
-		fmt.Printf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+		dism(fmt.Sprintf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
 	} else {
 		//admin core
 		vs, err := SolrServerPing(cfg.Solr.Serveruri)
 		if err != nil {
-			fmt.Printf("Solr admincore:"+NGLBL+" error: %s\n", err.Error())
+			dism(fmt.Sprintf("Solr admincore:"+NGLBL+" error: %s\n", err.Error()), MSGERROR)
 		} else {
-			fmt.Printf("Solr admincore:"+OKLBL+" solr-spec-version:%s\n", vs)
+			dism(fmt.Sprintf("Solr admincore:"+OKLBL+" solr-spec-version:%s\n", vs), MSGINFO)
 		}
 
 		//core check
 		_, qtime, err := si.Ping()
 		if err != nil {
-			fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename)
+			dism(fmt.Sprintf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
 		} else {
-			fmt.Printf("Solr core ping:"+OKLBL+" (%s %s) qtime:%d\n", cfg.Solr.Serveruri, cfg.Solr.Corename, qtime)
+			dism(fmt.Sprintf("Solr core ping:"+OKLBL+" (%s %s) qtime:%d\n", cfg.Solr.Serveruri, cfg.Solr.Corename, qtime), MSGINFO)
 
 			//TODO: core and schema check
 		}
@@ -535,9 +551,9 @@ func CheckConfigAndConnections() {
 	// step6 : check tika
 	vs, err := TikaPing(cfg.Tika.Serveruri)
 	if err != nil {
-		fmt.Printf("Tika ping:"+NGLBL+" (%s) %s\n", cfg.Tika.Serveruri, err)
+		dism(fmt.Sprintf("Tika ping:"+NGLBL+" (%s) %s\n", cfg.Tika.Serveruri, err), MSGERROR)
 	} else {
-		fmt.Printf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs)
+		dism(fmt.Sprintf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs), MSGINFO)
 	}
 }
 
@@ -705,10 +721,20 @@ func Copy(srcFile, dstFile string) error {
 		return err
 	}
 
-	defer out.Close()
+	defer func(out *os.File) {
+		err := out.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(out)
 
 	in, err := os.Open(srcFile)
-	defer in.Close()
+	defer func(in *os.File) {
+		err := in.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(in)
 	if err != nil {
 		return err
 	}

@@ -107,18 +107,6 @@ func TestImportFromFile(t *testing.T) {
 		t.Errorf("failed test unmatch materialid /expected:%s / actual:%s", targetid, res.Results.Docs[1].Get("materialid").(string))
 	}
 
-	filepathname = filepath.Join(dir, "testdata")
-	targetfolder := filepathname
-	if res.Results.Docs[1].Get("foldername").(string) != targetfolder {
-		t.Fatal("failed test unmatched foldername")
-	}
-	if res.Results.Docs[1].Get("filename").(string) != "Book1.xlsx" {
-		t.Fatal("failed test unmatched filename")
-	}
-	if res.Results.Docs[1].Get("contents").([]interface{})[0].(string) != "2022A1" {
-		t.Fatal("failed test unmatched contents")
-	}
-
 	err = SolrClearDocument(solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")

@@ -34,16 +34,38 @@ func HandlerGetMaterials(c echo.Context) error {
 	KQ.QueryString = qs
 	KQ.QueryMessage = qs
 	wres.KQ = KQ
-	/*
-		fBytes, err := res.Results.Docs.ToBytes()
-		if err != nil {
-			fmt.Println(err)
+
+	// convert to Material struct
+	var materials []Material
+
+	for k, v := range res.Results.Docs {
+		fmt.Println(k, v)
+		var cts []string
+		for _, v2 := range v.Get("contents").([]interface{}) {
+			cts = append(cts, v2.(string))
 		}
-		err = json.Unmarshal(fBytes, &wres.Materials)
-		if err != nil {
-			fmt.Println(err)
+		var m = Material{
+			ID:         v.Get("id").(string),
+			MaterialID: v.Get("materialid").(string),
+			ObjectType: "",
+			Foldername: "",
+			Filename:   "",
+			Sheetname:  "",
+			Mediatype:  v.Get("mediatype").(string),
+			Contents:   cts,
+			Title:      v.Get("title").(string),
 		}
-	*/
+		//v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
+
+		materials = append(materials, m)
+	}
+
+	//	if res.Results.Docs[1].Get("materialid").(string) != targetid {
+	//		t.Errorf("failed test unmatch materialid /expected:%s / actual:%s", targetid, res.Results.Docs[1].Get("materialid").(string))
+	//	}
+
+	wres.Materials = materials
+
 	return c.Render(http.StatusOK, "materials", wres)
 	//return c.JSONBlob(http.StatusOK, encodedJSON)
 }
