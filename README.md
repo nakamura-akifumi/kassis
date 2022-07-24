@@ -74,7 +74,7 @@ sudo apt install -y git
 Apache Tika と Apache Solr は、準備中にダウンロードするので別途ダウンロードする必要はありません。
 
 ```
-git clone https://github.com/nakamura-akifumi/kassis.git
+git clone -b v0.1.0 https://github.com/nakamura-akifumi/kassis.git
 cd kasis
 go run cmd/configurator/main.go makeconfigset
 go run cmd/configurator/main.go downloadapp
