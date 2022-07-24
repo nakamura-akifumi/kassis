@@ -71,24 +71,35 @@ sudo apt install -y git
 ## 準備その２
 
 本アプリ（kassis） をダウンロードし、設定を行います。
-ミドルウェアである Apache Tika と Apache Solr は、ダウンロードされます。
+Apache Tika と Apache Solr は、準備中にダウンロードするので別途ダウンロードする必要はありません。
 
 ```
 git clone https://github.com/nakamura-akifumi/kassis.git
 cd kasis
-go run cmd/configrator/main.go -generate-default-configset
-go run cmd/configrator/main.go -download-app
-go run cmd/configrator/main.go -start-solr
-go run cmd/configrator/main.go -setup-solr
-go run cmd/configrator/main.go -start-tika
+go run cmd/configurator/main.go makeconfigset
+go run cmd/configurator/main.go downloadapp
+go run cmd/configurator/main.go startsolr
+go run cmd/configurator/main.go setupsolr
+go run cmd/configurator/main.go starttika
+```
+
+以下のコマンドを実行して、問題が無いか確認します。
+
+```
+go run cmd/configurator/main.go
 ```
 
 # 実行
 
 ## ファイルのインポート
 
-## ウェブインターフェイス
+go run cmd/import/main.go <ファイル名もしくはフォルダ名>
 
+## 検索および結果表示
+
+go run cmd/webserver/main.go
+
+ブラウザで localhost:1323 にアクセスします。
 
 ## 技術的内容
 
@@ -112,7 +123,12 @@ go run cmd/configrator/main.go -start-tika
 ### データフロー
 （あとで記載予定）
 
-# 開発およびビルド方法
+# 実行ファイルの作成方法（ビルド方法）
+
+make が動くこと。
+実行ファイル（バイナリファイル）は、bin に作成されます。
+
+## 準備（Windows の場合）
 
 実行環境に加えて以下のものを準備する必要がある
 
@@ -121,10 +137,18 @@ go run cmd/configrator/main.go -start-tika
 - Make for windows
 http://gnuwin32.sourceforge.net/packages/make.htm
 
-## Windows以外の場合
+## 準備（Ubuntu 22.04 LTS の場合）
 
 ```
-make  
+sudo apt install make 
+```
+
+## ビルド
+
+windowsの場合は、git bash 上で実行してください。
+
+```
+make build 
 ```
 
 ## テスト
