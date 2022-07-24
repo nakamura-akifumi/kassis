@@ -42,5 +42,5 @@ func TestMaterialsQueryHandler(t *testing.T) {
 
 	//fmt.Println(rec.Body.String())
 
-	assert.Equal(t, "2022A1", rec.Body.String())
+	assert.Contains(t, rec.Body.String(), "2022A1")
 }

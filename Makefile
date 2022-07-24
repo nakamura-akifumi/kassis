@@ -3,6 +3,9 @@ VERSION:=$(shell cat VERSION)
 # リビジョン
 REVISION:=$(shell git rev-parse --short HEAD 2> /dev/null || cat REVISION)
 
+# ルートパッケージ名の取得
+ROOT_PACKAGE:=$(shell go list .)
+
 #
 GOVERSION=$(shell go version)
 GOOS=$(shell go env GOOS)
@@ -10,6 +13,13 @@ GOARCH=$(shell go env GOARCH)
 
 # 出力先のディレクトリ
 BINDIR:=bin
+
+# plathomename
+ifeq ($(GOOS),windows)
+	PLATHOME_NAME:=
+else
+	PLATHOME_NAME:=.$(GOOS)
+endif
 
 # ext
 ifeq ($(OS),Windows_NT)
@@ -53,22 +63,22 @@ default: build
 all: clean test build_all
 
 build:
-	go build $(GO_BUILD) -o ${BINDIR}/configrator.${GOOS}${BIN_EXT} cmd/configrator/main.go
-	go build $(GO_BUILD) -o ${BINDIR}/import.${GOOS}${BIN_EXT} cmd/import/main.go
-	go build $(GO_BUILD) -o ${BINDIR}/webserver.${GOOS}${BIN_EXT} cmd/webserver/main.go
+	go build $(GO_BUILD) -o ${BINDIR}/configurator${PLATHOME_NAME}${BIN_EXT} cmd/configurator/main.go
+	go build $(GO_BUILD) -o ${BINDIR}/import${PLATHOME_NAME}${BIN_EXT} cmd/import/main.go
+	go build $(GO_BUILD) -o ${BINDIR}/webserver${PLATHOME_NAME}${BIN_EXT} cmd/webserver/main.go
 
 build_all:
-	GOARCH=amd64 GOOS=darwin go build $(GO_BUILD) -o ${BINDIR}/configrator-amd64-darwin cmd/configrator/main.go
-	GOARCH=amd64 GOOS=linux go build $(GO_BUILD) -o ${BINDIR}/configrator-amd64-linux cmd/configrator/main.go
-	GOARCH=amd64 GOOS=window go build $(GO_BUILD) -o ${BINDIR}/configrator-windows.exe cmd/configrator/main.go
+	GOARCH=amd64 GOOS=darwin go build $(GO_BUILD) -o ${BINDIR}/configurator-amd64-darwin cmd/configurator/main.go
+	GOARCH=amd64 GOOS=linux go build $(GO_BUILD) -o ${BINDIR}/configurator-amd64-linux cmd/configurator/main.go
+	GOARCH=amd64 GOOS=window go build $(GO_BUILD) -o ${BINDIR}/configrator.exe cmd/configurator/main.go
 
 	GOARCH=amd64 GOOS=darwin go build $(GO_BUILD) -o ${BINDIR}/import-amd64-darwin cmd/import/main.go
 	GOARCH=amd64 GOOS=linux go build $(GO_BUILD) -o ${BINDIR}/import-amd64-linux cmd/import/main.go
-	GOARCH=amd64 GOOS=window go build $(GO_BUILD) -o ${BINDIR}/import-windows.exe cmd/import/main.go
+	GOARCH=amd64 GOOS=window go build $(GO_BUILD) -o ${BINDIR}/import
 
 	GOARCH=amd64 GOOS=darwin go build $(GO_BUILD) -o ${BINDIR}/webserver-amd64-darwin cmd/webserver/main.go
 	GOARCH=amd64 GOOS=linux go build $(GO_BUILD) -o ${BINDIR}/webserver-amd64-linux cmd/webserver/main.go
-	GOARCH=amd64 GOOS=window go build $(GO_BUILD) -o ${BINDIR}/webserver-windows.exe cmd/webserver/main.go
+	GOARCH=amd64 GOOS=window go build $(GO_BUILD) -o ${BINDIR}/webserver.exe cmd/webserver/main.go
 
 clean:
 	go clean
