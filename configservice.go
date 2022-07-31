@@ -205,6 +205,13 @@ func GenerateDefaultConfigSet() {
 func StartSolr(cfg *KENVCONF) {
 	fmt.Println("start solr.")
 
+	// step3-b : check java home
+	javahome := os.Getenv("JAVA_HOME")
+	if javahome == "" {
+		fmt.Println("error: no set JAVA_HOME")
+		return
+	}
+
 	solrbin := filepath.Join(cfg.Solr.Home, "bin")
 	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
 		fmt.Println("Solr bin:ng", solrbin)
@@ -460,7 +467,7 @@ func dism(msg string, isError bool) {
 
 // CheckConfigAndConnections は、設定が正しいかをチェックする関数です。
 // display mode : full or error-only
-func CheckConfigAndConnections(displaymode string) {
+func CheckConfigAndConnections(displaymode string) error {
 
 	DisplayModeOnCheckFunction = displaymode
 
@@ -470,7 +477,7 @@ func CheckConfigAndConnections(displaymode string) {
 	filename, err := getConfigPath()
 	if err != nil {
 		dism("read config file:"+NGLBL+"\n", MSGERROR)
-		return
+		return err
 	}
 
 	dism("read config file:"+OKLBL+"\n", MSGINFO)
@@ -499,6 +506,18 @@ func CheckConfigAndConnections(displaymode string) {
 		dism("---\n", MSGINFO)
 		dism(string(out)+"\n", MSGINFO)
 		dism("---\n", MSGINFO)
+	}
+
+	// step3-b : check java home
+	javahome := os.Getenv("JAVA_HOME")
+	if javahome == "" {
+		dism("Env JAVA_HOME:"+NGLBL+"\n", MSGERROR)
+	} else {
+		javaexe := filepath.Join(javahome, "bin", "java.exe")
+		_, err := os.Stat(javaexe)
+		if err != nil {
+			dism(fmt.Sprintf("ERROR: java.exe "+NGLBL+" not found in %s : Please set JAVA_HOME to a valid JRE / JDK directory.\n", javaexe), MSGERROR)
+		}
 	}
 
 	// step4 : check solr
@@ -555,6 +574,8 @@ func CheckConfigAndConnections(displaymode string) {
 	} else {
 		dism(fmt.Sprintf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs), MSGINFO)
 	}
+
+	return nil
 }
 
 func TikaPing(tikauri string) (string, error) {

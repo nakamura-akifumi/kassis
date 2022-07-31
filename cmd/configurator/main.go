@@ -17,7 +17,7 @@ func main() {
 	flag.CommandLine.Usage = func() {
 		o := flag.CommandLine.Output()
 		_, _ = fmt.Fprint(o, "\nUsage: configurator [ OPTIONS ] [COMMAND | help]\n")
-		_, _ = fmt.Fprint(o, "Where COMMAND := [check | makeconfigset | setupsolr | startsolr | stopsolr | starttika | stoptika | deleteall | downloadapp]\n")
+		_, _ = fmt.Fprint(o, "Where COMMAND := [check | makeconfigset | downloadapp | startsolr | setupsolr | starttika | stopsolr | stoptika | deleteall]\n")
 		_, _ = fmt.Fprint(o, "      OPTIONS:\n")
 		flag.PrintDefaults()
 	}

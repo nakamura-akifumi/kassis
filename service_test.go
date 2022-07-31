@@ -8,6 +8,32 @@ import (
 	"testing"
 )
 
+func TestImportFromFileNCNDLRDF(t *testing.T) {
+	solrserveruri := "http://localhost:8983"
+	solrcorename := "kassiscore_test"
+
+	err := SolrClearDocument(solrserveruri, solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	files := []string{"nonono"}
+	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
+	if err == nil {
+		t.Fatal("failed test")
+	}
+
+	dir, _ := os.Getwd()
+	filepathname := filepath.Join(dir, "testdata", "000013.xml")
+
+	files = []string{filepathname}
+	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
+	if err != nil {
+		t.Error(err)
+		t.Fatal("failed test")
+	}
+}
+
 func TestExtnameToMediaTypeSuccess(t *testing.T) {
 	result := ExtnameToMediaType("bar")
 	if result != "application/octet-stream" {
