@@ -217,8 +217,9 @@ type DCNDLOAIPMH struct {
 						VolumeTitle            struct {
 							Text        string `xml:",chardata"`
 							Description struct {
-								Text  string `xml:",chardata"`
-								Value string `xml:"value"`
+								Text          string `xml:",chardata"`
+								Value         string `xml:"value"`
+								Transcription string `xml:"transcription"`
 							} `xml:"Description"`
 						} `xml:"volumeTitle"`
 						VolumeRange string `xml:"volumeRange"`
@@ -620,9 +621,50 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 
 		for _, r := range dcndloaipmh.ListRecords.Record {
 			materialid := r.Header.Identifier
-			title := r.Metadata.RDF.BibResource[0].Title.Description.Value
+			bibresource := r.Metadata.RDF.BibResource[0]
+			title := bibresource.Title.Description.Value
+			title_transcription := bibresource.Title.Description.Transcription
+			uniform_title := bibresource.UniformTitle.Description.Value
+			uniform_title_transcription := bibresource.UniformTitle.Description.Transcription
+			volume := bibresource.Volume.Description.Value
+			volume_transcription := bibresource.Volume.Description.Transcription
+			volume_title := bibresource.VolumeTitle.Description.Value
+			volume_title_transcription := bibresource.VolumeTitle.Description.Transcription
+			alternative := bibresource.Alternative.Description.Value
+			alternative_transcription := bibresource.Alternative.Description.Transcription
+			//TODO: データ確認
+			//alternative_volume
+			//alternative_volume_title
+			series_title := ""
+			series_title_transcription := ""
+			if len(bibresource.SeriesTitle) > 0 {
+				//TODO: 配列対応
+				series_title = bibresource.SeriesTitle[0].Description.Value
+				series_title_transcription = bibresource.SeriesTitle[0].Description.Transcription
+			}
+			edition := bibresource.Edition
 
-			fmt.Println(materialid, title)
+			creator := ""
+			creator_transcription := ""
+			creator_identifier := ""
+			creator_literal := ""
+
+			//TODO: 配列対応
+			if len(bibresource.Creator) > 0 {
+				creator = bibresource.Creator[0].Agent.Name
+				creator_transcription = bibresource.Creator[0].Agent.Transcription
+				//TODO: creatorにすべきかagentに収めるか
+				creator_identifier = bibresource.Creator[0].Agent.About
+				creator_literal = bibresource.Creator[0].Text
+			}
+			//TODO: データ確認
+			//creator_alternative_literal :=
+
+			fmt.Println(materialid, title, title_transcription, uniform_title, uniform_title_transcription)
+			fmt.Println(volume, volume_transcription, volume_title, volume_title_transcription)
+			fmt.Println(alternative, alternative_transcription)
+			fmt.Println(series_title, series_title_transcription, edition)
+			fmt.Println(creator, creator_transcription, creator_identifier, creator_literal)
 		}
 	}
 

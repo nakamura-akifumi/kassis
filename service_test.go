@@ -24,7 +24,7 @@ func TestImportFromFileNCNDLRDF(t *testing.T) {
 	}
 
 	dir, _ := os.Getwd()
-	filepathname := filepath.Join(dir, "testdata", "000013.xml")
+	filepathname := filepath.Join(dir, "testdata", "000462.xml")
 
 	files = []string{filepathname}
 	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
