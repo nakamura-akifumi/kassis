@@ -10,6 +10,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-tika/tika"
 	"github.com/rs/zerolog/log"
+	"github.com/tcnksm/go-httpstat"
 	"github.com/vanng822/go-solr/solr"
 	"io"
 	"io/ioutil"
@@ -17,7 +18,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Material struct {
@@ -350,16 +353,6 @@ const ContenttypePdf string = "application/pdf"
 const ContenttypeText string = "text/plain"
 const ContenttypeWord string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-// ArrayContains は、配列の中に特定の文字列が含まれるかを返す
-func ArrayContains(arr []string, str string) bool {
-	for _, v := range arr {
-		if v == str {
-			return true
-		}
-	}
-	return false
-}
-
 func ExtnameToMediaType(extname string) string {
 	ct := "application/octet-stream"
 	switch extname {
@@ -655,7 +648,6 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 		if err != nil {
 			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
-		defer fi.Close()
 
 		data, err := ioutil.ReadAll(fi)
 		if err != nil {
@@ -665,6 +657,7 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 		err = xml.Unmarshal(data, &dcndloaipmh)
 		if err != nil {
 			fmt.Printf("error: %v", err)
+			fi.Close()
 			return err
 		}
 
@@ -715,6 +708,7 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 			fmt.Println(series_title, series_title_transcription, edition)
 			fmt.Println(creator, creator_transcription, creator_identifier, creator_literal)
 		}
+		fi.Close()
 	}
 
 	return nil
@@ -743,7 +737,6 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 		if err != nil {
 			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
-		defer fi.Close()
 
 		reader := bufio.NewReaderSize(fi, 4096)
 		for {
@@ -758,32 +751,45 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 			isbn := string(line)
 			fmt.Println(isbn)
 
-			err = FetchMaterialFromNDLByISBN(isbn)
+			isbn = strings.TrimSpace(isbn)
+			if isbn == "" {
+				continue
+			}
+			data, err := FetchMaterialFromNDLByISBN(isbn)
 			if err != nil {
 				fmt.Println(err)
 			}
+
+			//fmt.Printf("%+v", data)
+			//fmt.Println(data.NumberOfRecords)
+			fmt.Printf("isbn:%s r:%s\n", isbn, data.NumberOfRecords)
+			numOfRecords, _ := strconv.Atoi(data.NumberOfRecords)
+			if numOfRecords > 0 {
+				fmt.Println(data.Records.Record[0].RecordData.Dc.Title)
+			}
 		}
+		fi.Close()
 	}
 	return nil
 }
 
-func FetchMaterialFromNDLByISBN(isbn string) error {
-	/*
-		client := &http.Client{
-			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
-				// DisableKeepAlives: true,
-				MaxIdleConns:    10,
-				IdleConnTimeout: 30 * time.Second,
-				//DisableCompression: true,
-			},
-		}
-	*/
+func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			// DisableKeepAlives: true,
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+			//DisableCompression: true,
+		},
+	}
 	endpoint := "https://iss.ndl.go.jp/api/sru"
+
+	data := SearchRetrieveResponse{}
 
 	u, err := url.Parse(endpoint)
 	if err != nil {
-		return err
+		return &data, err
 	}
 	q := u.Query()
 	q.Add("operation", "searchRetrieve")
@@ -793,104 +799,48 @@ func FetchMaterialFromNDLByISBN(isbn string) error {
 	q.Add("maximumRecords", "1")
 	q.Add("query", fmt.Sprintf("isbn=%s", isbn))
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		panic(err)
 	}
+
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s", VERSION))
+
+	result := new(httpstat.Result)
+	ctx := httpstat.WithHTTPStat(req.Context(), result)
+	req = req.WithContext(ctx)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	//https://iss.ndl.go.jp/api/sru?operation=searchRetrieve&query=isbn%3D9784480689108&recordSchema=dcndl&onlyBib=true
+	//fmt.Println(string(body))
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		panic(err)
 	}
-	/*
-		//----
-
-		values := url.Values{}
-		values.Add("operation", "searchRetrieve")
-		//values.Add("version", "1.2")
-		values.Add("recordSchema", "dcndl")
-		values.Add("onlyBib", "true")
-
-		values.Add("maximumRecords", "1")
-		values.Add("query", fmt.Sprintf("isbn=%s", isbn))
-
-		req, err := http.NewRequest("GET", uri, nil)
-		if err != nil {
-			panic(err)
-		}
-
-		//req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s", VERSION))
-		req.URL.RawQuery = values.Encode()
-
-		result := new(httpstat.Result)
-		ctx := httpstat.WithHTTPStat(req.Context(), result)
-		req = req.WithContext(ctx)
-
-		resp, err = client.Do(req)
-		if err != nil {
-			panic(err)
-		}
-		//io.Copy(ioutil.Discard, resp.Body)
-		body, err = io.ReadAll(resp.Body)
+	if resp.StatusCode != 200 {
+		fmt.Println("Error Response:", resp.Status)
 		resp.Body.Close()
-
-		result.End(time.Now())
-		log.Printf("%+v\n", result)
-		fmt.Println(len(string(body)))
-		fmt.Print(string(body))
-	*/
-	//------
-	/*
-		values := url.Values{}
-		values.Add("operation", "searchRetrieve")
-		//values.Add("version", "1.2")
-		values.Add("recordSchema", "dcndl")
-		values.Add("onlyBib", "true")
-		values.Add("maximumRecords", "1")
-		values.Add("query", fmt.Sprintf("isbn=%s", isbn))
-
-		req, _ := http.NewRequest(http.MethodGet, uri, nil)
-		req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s", VERSION))
-		req.URL.RawQuery = values.Encode()
-
-		//fmt.Println(req.URL.String())
-
-		client := new(http.Client)
-		resp, err := client.Do(req)
-
-		if err != nil {
-			fmt.Println("Error Request:", err)
-			return err
-		}
-
-		if resp.StatusCode != 200 {
-			fmt.Println("Error Response:", resp.Status)
-			resp.Body.Close()
-			return err
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println(err)
-			resp.Body.Close()
-			return err
-		}
-
-		resp.Body.Close()
-	*/
-	//https://iss.ndl.go.jp/api/sru?operation=searchRetrieve&query=isbn%3D9784480689108&recordSchema=dcndl&onlyBib=true
-	//fmt.Println(string(body))
-	fmt.Println(len(string(body)))
-
-	data := SearchRetrieveResponse{}
-	if err := xml.Unmarshal(body, &data); err != nil {
-		fmt.Println(err)
-		return err
+		return &data, err
 	}
 
-	fmt.Println(data)
+	fmt.Println(len(string(body)))
 
-	return nil
+	result.End(time.Now())
+
+	if err := xml.Unmarshal(body, &data); err != nil {
+		fmt.Println(err)
+		return &data, err
+	}
+
+	//fmt.Println(data)
+
+	return &data, nil
 }
 
 func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, solrcorename string) error {

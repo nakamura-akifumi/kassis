@@ -5,12 +5,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 )
 
 func TestFetchMaterialFromNDLByISBN(t *testing.T) {
-	err := FetchMaterialFromNDLByISBN("9784480689108")
+	data, err := FetchMaterialFromNDLByISBN("9784480689108")
 	if err != nil {
+		t.Fatal("failed test")
+	}
+	numOfRecords, _ := strconv.Atoi(data.NumberOfRecords)
+	if numOfRecords == 1 {
 		t.Fatal("failed test")
 	}
 
