@@ -546,7 +546,7 @@ func CheckConfigAndConnections(displaymode string) error {
 	uri := cfg.Solr.Serveruri + "/solr"
 	si, err := solr.NewSolrInterface(uri, cfg.Solr.Corename)
 	if err != nil {
-		dism(fmt.Sprintf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
+		dism(fmt.Sprintf("Solr connection:"+NGLBL+" error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
 	} else {
 		//admin core
 		vs, err := SolrServerPing(cfg.Solr.Serveruri)

@@ -8,6 +8,14 @@ import (
 	"testing"
 )
 
+func TestFetchMaterialFromNDLByISBN(t *testing.T) {
+	err := FetchMaterialFromNDLByISBN("9784480689108")
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+}
+
 func TestImportFromFileNCNDLRDF(t *testing.T) {
 	solrserveruri := "http://localhost:8983"
 	solrcorename := "kassiscore_test"

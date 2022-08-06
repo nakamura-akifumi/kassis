@@ -1,6 +1,7 @@
 package kassiscore
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/xml"
@@ -45,6 +46,54 @@ type KWRIF struct {
 	ResponseMessage string
 	KQ              KWQIF
 	Materials       []Material
+}
+
+// SRU DCNDL
+type SearchRetrieveResponse struct {
+	XMLName            xml.Name `xml:"searchRetrieveResponse"`
+	Text               string   `xml:",chardata"`
+	Xmlns              string   `xml:"xmlns,attr"`
+	Version            string   `xml:"version"`
+	NumberOfRecords    string   `xml:"numberOfRecords"`
+	NextRecordPosition string   `xml:"nextRecordPosition"`
+	ExtraResponseData  struct {
+		Text   string `xml:",chardata"`
+		Facets struct {
+			Text string `xml:",chardata"`
+			Lst  []struct {
+				Text string `xml:",chardata"`
+				Name string `xml:"name,attr"`
+				Int  []struct {
+					Text string `xml:",chardata"`
+					Name string `xml:"name,attr"`
+				} `xml:"int"`
+			} `xml:"lst"`
+		} `xml:"facets"`
+	} `xml:"extraResponseData"`
+	Records struct {
+		Text   string `xml:",chardata"`
+		Record []struct {
+			Text          string `xml:",chardata"`
+			RecordSchema  string `xml:"recordSchema"`
+			RecordPacking string `xml:"recordPacking"`
+			RecordData    struct {
+				Text string `xml:",chardata"`
+				Dc   struct {
+					Text           string   `xml:",chardata"`
+					Dc             string   `xml:"dc,attr"`
+					SrwDc          string   `xml:"srw_dc,attr"`
+					Xsi            string   `xml:"xsi,attr"`
+					SchemaLocation string   `xml:"schemaLocation,attr"`
+					Title          string   `xml:"title"`
+					Creator        string   `xml:"creator"`
+					Subject        []string `xml:"subject"`
+					Publisher      string   `xml:"publisher"`
+					Language       string   `xml:"language"`
+				} `xml:"dc"`
+			} `xml:"recordData"`
+			RecordPosition string `xml:"recordPosition"`
+		} `xml:"record"`
+	} `xml:"records"`
 }
 
 // DCNDL
@@ -667,6 +716,179 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 			fmt.Println(creator, creator_transcription, creator_identifier, creator_literal)
 		}
 	}
+
+	return nil
+}
+
+func ImportFromISBNFile(files []string, solrserveruri string, solrcorename string) error {
+	uri := solrserveruri + "/solr"
+	si, err := solr.NewSolrInterface(uri, solrcorename)
+	if err != nil {
+		log.Fatal().Err(err)
+		return err
+	}
+
+	status, qtime, err := si.Ping()
+	if err != nil {
+		fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", solrserveruri, solrcorename)
+		return err
+	}
+	log.Debug().Msgf("Solr Ping status:%s qtime:%d\n", status, qtime)
+
+	successCount := 0
+	for _, filename := range files {
+		fmt.Printf("%d/%d filename:%s\n", successCount+1, len(files), filename)
+
+		fi, err := os.Open(filename)
+		if err != nil {
+			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
+		}
+		defer fi.Close()
+
+		reader := bufio.NewReaderSize(fi, 4096)
+		for {
+			line, _, err := reader.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				fmt.Println(err)
+			}
+
+			isbn := string(line)
+			fmt.Println(isbn)
+
+			err = FetchMaterialFromNDLByISBN(isbn)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
+	}
+	return nil
+}
+
+func FetchMaterialFromNDLByISBN(isbn string) error {
+	/*
+		client := &http.Client{
+			Transport: &http.Transport{
+				Proxy: http.ProxyFromEnvironment,
+				// DisableKeepAlives: true,
+				MaxIdleConns:    10,
+				IdleConnTimeout: 30 * time.Second,
+				//DisableCompression: true,
+			},
+		}
+	*/
+	endpoint := "https://iss.ndl.go.jp/api/sru"
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+	q := u.Query()
+	q.Add("operation", "searchRetrieve")
+	//q.Add("version", "1.2")
+	q.Add("recordSchema", "dcndl")
+	q.Add("onlyBib", "true")
+	q.Add("maximumRecords", "1")
+	q.Add("query", fmt.Sprintf("isbn=%s", isbn))
+	u.RawQuery = q.Encode()
+	resp, err := http.Get(u.String())
+	if err != nil {
+		panic(err)
+	}
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+	/*
+		//----
+
+		values := url.Values{}
+		values.Add("operation", "searchRetrieve")
+		//values.Add("version", "1.2")
+		values.Add("recordSchema", "dcndl")
+		values.Add("onlyBib", "true")
+
+		values.Add("maximumRecords", "1")
+		values.Add("query", fmt.Sprintf("isbn=%s", isbn))
+
+		req, err := http.NewRequest("GET", uri, nil)
+		if err != nil {
+			panic(err)
+		}
+
+		//req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s", VERSION))
+		req.URL.RawQuery = values.Encode()
+
+		result := new(httpstat.Result)
+		ctx := httpstat.WithHTTPStat(req.Context(), result)
+		req = req.WithContext(ctx)
+
+		resp, err = client.Do(req)
+		if err != nil {
+			panic(err)
+		}
+		//io.Copy(ioutil.Discard, resp.Body)
+		body, err = io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		result.End(time.Now())
+		log.Printf("%+v\n", result)
+		fmt.Println(len(string(body)))
+		fmt.Print(string(body))
+	*/
+	//------
+	/*
+		values := url.Values{}
+		values.Add("operation", "searchRetrieve")
+		//values.Add("version", "1.2")
+		values.Add("recordSchema", "dcndl")
+		values.Add("onlyBib", "true")
+		values.Add("maximumRecords", "1")
+		values.Add("query", fmt.Sprintf("isbn=%s", isbn))
+
+		req, _ := http.NewRequest(http.MethodGet, uri, nil)
+		req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s", VERSION))
+		req.URL.RawQuery = values.Encode()
+
+		//fmt.Println(req.URL.String())
+
+		client := new(http.Client)
+		resp, err := client.Do(req)
+
+		if err != nil {
+			fmt.Println("Error Request:", err)
+			return err
+		}
+
+		if resp.StatusCode != 200 {
+			fmt.Println("Error Response:", resp.Status)
+			resp.Body.Close()
+			return err
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println(err)
+			resp.Body.Close()
+			return err
+		}
+
+		resp.Body.Close()
+	*/
+	//https://iss.ndl.go.jp/api/sru?operation=searchRetrieve&query=isbn%3D9784480689108&recordSchema=dcndl&onlyBib=true
+	//fmt.Println(string(body))
+	fmt.Println(len(string(body)))
+
+	data := SearchRetrieveResponse{}
+	if err := xml.Unmarshal(body, &data); err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	fmt.Println(data)
 
 	return nil
 }
