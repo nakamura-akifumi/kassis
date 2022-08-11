@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -51,303 +52,6 @@ type KWRIF struct {
 	Materials       []Material
 }
 
-// SRU DCNDL
-type SearchRetrieveResponse struct {
-	XMLName            xml.Name `xml:"searchRetrieveResponse"`
-	Text               string   `xml:",chardata"`
-	Xmlns              string   `xml:"xmlns,attr"`
-	Version            string   `xml:"version"`
-	NumberOfRecords    string   `xml:"numberOfRecords"`
-	NextRecordPosition string   `xml:"nextRecordPosition"`
-	ExtraResponseData  struct {
-		Text   string `xml:",chardata"`
-		Facets struct {
-			Text string `xml:",chardata"`
-			Lst  []struct {
-				Text string `xml:",chardata"`
-				Name string `xml:"name,attr"`
-				Int  []struct {
-					Text string `xml:",chardata"`
-					Name string `xml:"name,attr"`
-				} `xml:"int"`
-			} `xml:"lst"`
-		} `xml:"facets"`
-	} `xml:"extraResponseData"`
-	Records struct {
-		Text   string `xml:",chardata"`
-		Record []struct {
-			Text          string `xml:",chardata"`
-			RecordSchema  string `xml:"recordSchema"`
-			RecordPacking string `xml:"recordPacking"`
-			RecordData    struct {
-				Text string `xml:",chardata"`
-				Dc   struct {
-					Text           string   `xml:",chardata"`
-					Dc             string   `xml:"dc,attr"`
-					SrwDc          string   `xml:"srw_dc,attr"`
-					Xsi            string   `xml:"xsi,attr"`
-					SchemaLocation string   `xml:"schemaLocation,attr"`
-					Title          string   `xml:"title"`
-					Creator        string   `xml:"creator"`
-					Subject        []string `xml:"subject"`
-					Publisher      string   `xml:"publisher"`
-					Language       string   `xml:"language"`
-				} `xml:"dc"`
-			} `xml:"recordData"`
-			RecordPosition string `xml:"recordPosition"`
-		} `xml:"record"`
-	} `xml:"records"`
-}
-
-// DCNDL
-type DCNDLOAIPMH struct {
-	XMLName     xml.Name `xml:"OAI-PMH"`
-	Text        string   `xml:",chardata"`
-	Xmlns       string   `xml:"xmlns,attr"`
-	ListRecords struct {
-		Text   string `xml:",chardata"`
-		Record []struct {
-			Text   string `xml:",chardata"`
-			Header struct {
-				Text       string `xml:",chardata"`
-				Identifier string `xml:"identifier"`
-				Datestamp  string `xml:"datestamp"`
-			} `xml:"header"`
-			Metadata struct {
-				Text string `xml:",chardata"`
-				RDF  struct {
-					Text             string `xml:",chardata"`
-					Dcterms          string `xml:"dcterms,attr"`
-					Rdf              string `xml:"rdf,attr"`
-					Dcndl            string `xml:"dcndl,attr"`
-					Foaf             string `xml:"foaf,attr"`
-					Rdfs             string `xml:"rdfs,attr"`
-					Dc               string `xml:"dc,attr"`
-					Owl              string `xml:"owl,attr"`
-					BibAdminResource struct {
-						Text                 string `xml:",chardata"`
-						About                string `xml:"about,attr"`
-						CatalogingStatus     string `xml:"catalogingStatus"`
-						CatalogingRule       string `xml:"catalogingRule"`
-						BibRecordCategory    string `xml:"bibRecordCategory"`
-						BibRecordSubCategory string `xml:"bibRecordSubCategory"`
-						Record               struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-						} `xml:"record"`
-						Description string `xml:"description"`
-					} `xml:"BibAdminResource"`
-					BibResource []struct {
-						Text    string `xml:",chardata"`
-						About   string `xml:"about,attr"`
-						SeeAlso []struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-						} `xml:"seeAlso"`
-						Identifier []struct {
-							Text     string `xml:",chardata"`
-							Datatype string `xml:"datatype,attr"`
-						} `xml:"identifier"`
-						Title struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"title"`
-						Volume struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"volume"`
-						SeriesTitle []struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"seriesTitle"`
-						Creator []struct {
-							Text  string `xml:",chardata"`
-							Agent struct {
-								Text          string `xml:",chardata"`
-								About         string `xml:"about,attr"`
-								Name          string `xml:"name"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Agent"`
-						} `xml:"creator"`
-						Publisher []struct {
-							Text  string `xml:",chardata"`
-							Agent struct {
-								Text          string `xml:",chardata"`
-								Name          string `xml:"name"`
-								Transcription string `xml:"transcription"`
-								Location      string `xml:"location"`
-								Description   string `xml:"description"`
-							} `xml:"Agent"`
-						} `xml:"publisher"`
-						PublicationPlace struct {
-							Text     string `xml:",chardata"`
-							Datatype string `xml:"datatype,attr"`
-						} `xml:"publicationPlace"`
-						Date   string `xml:"date"`
-						Issued []struct {
-							Text     string `xml:",chardata"`
-							Datatype string `xml:"datatype,attr"`
-						} `xml:"issued"`
-						Subject struct {
-							Text        string `xml:",chardata"`
-							Datatype    string `xml:"datatype,attr"`
-							Resource    string `xml:"resource,attr"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								About         string `xml:"about,attr"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"subject"`
-						Language []struct {
-							Text     string `xml:",chardata"`
-							Datatype string `xml:"datatype,attr"`
-						} `xml:"language"`
-						Extent       string `xml:"extent"`
-						MaterialType []struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-							Label    string `xml:"label,attr"`
-						} `xml:"materialType"`
-						AccessRights string `xml:"accessRights"`
-						Audience     string `xml:"audience"`
-						Record       struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-						} `xml:"record"`
-						PartInformation []struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text    string `xml:",chardata"`
-								Title   string `xml:"title"`
-								Creator string `xml:"creator"`
-							} `xml:"Description"`
-						} `xml:"partInformation"`
-						Alternative struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"alternative"`
-						Description []string `xml:"description"`
-						Price       string   `xml:"price"`
-						Edition     string   `xml:"edition"`
-						Genre       []struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text  string `xml:",chardata"`
-								About string `xml:"about,attr"`
-								Value string `xml:"value"`
-							} `xml:"Description"`
-						} `xml:"genre"`
-						SeriesCreator string `xml:"seriesCreator"`
-						UniformTitle  struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								About         string `xml:"about,attr"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"uniformTitle"`
-						PublicationPeriodicity string `xml:"publicationPeriodicity"`
-						PublicationStatus      string `xml:"publicationStatus"`
-						VolumeTitle            struct {
-							Text        string `xml:",chardata"`
-							Description struct {
-								Text          string `xml:",chardata"`
-								Value         string `xml:"value"`
-								Transcription string `xml:"transcription"`
-							} `xml:"Description"`
-						} `xml:"volumeTitle"`
-						VolumeRange string `xml:"volumeRange"`
-						Relation    []struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-							Label    string `xml:"label,attr"`
-						} `xml:"relation"`
-						Replaces struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-							Label    string `xml:"label,attr"`
-						} `xml:"replaces"`
-						IsReplacedBy struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-							Label    string `xml:"label,attr"`
-						} `xml:"isReplacedBy"`
-						OriginalLanguage struct {
-							Text     string `xml:",chardata"`
-							Datatype string `xml:"datatype,attr"`
-						} `xml:"originalLanguage"`
-					} `xml:"BibResource"`
-					Item struct {
-						Text         string `xml:",chardata"`
-						About        string `xml:"about,attr"`
-						HoldingAgent struct {
-							Text  string `xml:",chardata"`
-							Agent struct {
-								Text       string `xml:",chardata"`
-								Name       string `xml:"name"`
-								Identifier struct {
-									Text     string `xml:",chardata"`
-									Datatype string `xml:"datatype,attr"`
-								} `xml:"identifier"`
-							} `xml:"Agent"`
-						} `xml:"holdingAgent"`
-						SeeAlso struct {
-							Text     string `xml:",chardata"`
-							Resource string `xml:"resource,attr"`
-						} `xml:"seeAlso"`
-						Identifier struct {
-							Text     string `xml:",chardata"`
-							Datatype string `xml:"datatype,attr"`
-						} `xml:"identifier"`
-						CallNumber      string   `xml:"callNumber"`
-						LocalCallNumber []string `xml:"localCallNumber"`
-						HoldingIssues   string   `xml:"holdingIssues"`
-					} `xml:"Item"`
-				} `xml:"RDF"`
-			} `xml:"metadata"`
-		} `xml:"record"`
-	} `xml:"ListRecords"`
-}
-
-/*
-type KENVCONF struct {
-	HomeDir   string `json:"homeDir"`
-	ExtDir    string `json:"extDir"`
-	ExtAppDir string `json:"extAppDir"`
-	WebServer struct {
-		Listen string `json:"listen"`
-	} `json:"web"`
-	Solr struct {
-		Home      string `json:"home"`
-		Serveruri string `json:"serveruri"`
-		Corename  string `json:"corename"`
-	} `json:"solr"`
-	Tika struct {
-		Home      string `json:"home"`
-		Serveruri string `json:"serveruri"`
-	} `json:"tika"`
-	Files []FileProcessor `json:"files"`
-}
-*/
-
 const ContenttypeExcel string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 const ContenttypePdf string = "application/pdf"
 const ContenttypeText string = "text/plain"
@@ -366,26 +70,6 @@ func ExtnameToMediaType(extname string) string {
 		ct = ContenttypeWord
 	}
 	return ct
-}
-
-func SolrClearDocument(uriaddress string, corename string) error {
-
-	uri := uriaddress + "/solr"
-	si, err := solr.NewSolrInterface(uri, corename)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msgf("Connection error.")
-		return err
-	}
-
-	_, err = si.DeleteAll()
-	if err != nil {
-		log.Fatal().Err(err)
-		return err
-	}
-
-	return nil
 }
 
 // SolrQuery は、Solrに検索を投げます
@@ -714,18 +398,18 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 	return nil
 }
 
-func ImportFromISBNFile(files []string, solrserveruri string, solrcorename string) error {
+func ImportFromISBNFile(files []string, solrserveruri string, solrcorename string) (int, error) {
 	uri := solrserveruri + "/solr"
 	si, err := solr.NewSolrInterface(uri, solrcorename)
 	if err != nil {
 		log.Fatal().Err(err)
-		return err
+		return 0, err
 	}
 
 	status, qtime, err := si.Ping()
 	if err != nil {
 		fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", solrserveruri, solrcorename)
-		return err
+		return 0, err
 	}
 	log.Debug().Msgf("Solr Ping status:%s qtime:%d\n", status, qtime)
 
@@ -735,7 +419,7 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 
 		fi, err := os.Open(filename)
 		if err != nil {
-			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
+			return 0, errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
 
 		reader := bufio.NewReaderSize(fi, 4096)
@@ -760,20 +444,43 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 				fmt.Println(err)
 			}
 
+			//TODO: store to solr
 			//fmt.Printf("%+v", data)
 			//fmt.Println(data.NumberOfRecords)
 			fmt.Printf("isbn:%s r:%s\n", isbn, data.NumberOfRecords)
 			numOfRecords, _ := strconv.Atoi(data.NumberOfRecords)
 			if numOfRecords > 0 {
-				fmt.Println(data.Records.Record[0].RecordData.Dc.Title)
+				fmt.Println(data.Records.Record[0].RecordData.RDF.BibAdminResource.About)
+				fmt.Println(data.Records.Record[0].RecordData.RDF.BibResource.Title.Description.Value)
+				fmt.Println(data.Records.Record[0].RecordData.RDF.BibResource.Title.Description.Transcription)
 			}
 		}
 		fi.Close()
 	}
-	return nil
+	return successCount, nil
 }
 
 func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
+	var r NDLRDF
+	res, err := searchRetrieveResponseFromNDLByISBN(isbn)
+	numOfRecords, _ := strconv.Atoi(res.NumberOfRecords)
+	if numOfRecords > 0 {
+		for _, rec := range res.Records.Record {
+			if rec.RecordData.RDF.BibAdminResource.CatalogingStatus != "" { // C7 or C3
+				r = rec.RecordData.RDF
+			}
+		}
+
+		fmt.Println(r.BibAdminResource.About)
+		fmt.Println(r.BibResource.Title.Description.Value)
+		fmt.Println(r.BibResource.Title.Description.Transcription)
+
+	}
+
+	return res, err
+}
+
+func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
 	client := &http.Client{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -784,7 +491,6 @@ func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
 		},
 	}
 	endpoint := "https://iss.ndl.go.jp/api/sru"
-
 	data := SearchRetrieveResponse{}
 
 	u, err := url.Parse(endpoint)
@@ -795,9 +501,12 @@ func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
 	q.Add("operation", "searchRetrieve")
 	//q.Add("version", "1.2")
 	q.Add("recordSchema", "dcndl")
+	q.Add("recordPacking", "xml")
 	q.Add("onlyBib", "true")
-	q.Add("maximumRecords", "1")
+	q.Add("maximumRecords", "2")
+	//q.Add("inprocess", "false")
 	q.Add("query", fmt.Sprintf("isbn=%s", isbn))
+	q.Add("sortBy", "modified_date.descending")
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -805,7 +514,7 @@ func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
 		panic(err)
 	}
 
-	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s", VERSION))
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s+%s/%s", VERSION, REVISION, runtime.GOOS))
 
 	result := new(httpstat.Result)
 	ctx := httpstat.WithHTTPStat(req.Context(), result)
@@ -816,8 +525,6 @@ func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
 		panic(err)
 	}
 
-	//https://iss.ndl.go.jp/api/sru?operation=searchRetrieve&query=isbn%3D9784480689108&recordSchema=dcndl&onlyBib=true
-	//fmt.Println(string(body))
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
@@ -829,7 +536,16 @@ func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
 		return &data, err
 	}
 
-	fmt.Println(len(string(body)))
+	//fmt.Println(len(string(body)))
+	//fmt.Println(string(body))
+
+	// for debug
+	writefilename, _ := os.Getwd()
+	writefilename = filepath.Join(writefilename, "ext", "sru_response_"+isbn+".txt")
+	err = ioutil.WriteFile(writefilename, body, 0666)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	result.End(time.Now())
 

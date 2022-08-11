@@ -82,7 +82,6 @@ func main() {
 
 	err := kassiscore.CheckConfigAndConnections("error-only")
 	if err != nil {
-		fmt.Println(err)
 		os.Exit(10)
 	}
 
@@ -100,7 +99,7 @@ func main() {
 			os.Exit(12)
 		}
 	case "isbn":
-		err = kassiscore.ImportFromISBNFile(files, cfg.Solr.Serveruri, cfg.Solr.Corename)
+		_, err = kassiscore.ImportFromISBNFile(files, cfg.Solr.Serveruri, cfg.Solr.Corename)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(13)

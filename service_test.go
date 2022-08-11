@@ -9,15 +9,66 @@ import (
 	"testing"
 )
 
+func TestImportFromISBNFile(t *testing.T) {
+	valid_solrserveruri := "http://localhost:8983"
+	valid_solrcorename := "kassiscore_test"
+
+	invalid_solrserveruri := "http://localhost:8989"
+
+	err := SolrClearDocument(valid_solrserveruri, valid_solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	files := []string{""}
+	cnt, err := ImportFromISBNFile(files, invalid_solrserveruri, valid_solrcorename)
+	if err == nil {
+		t.Fatal("failed test")
+	}
+
+	files = []string{"mono"}
+	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
+	if err == nil && cnt != 0 {
+		t.Fatal("failed test")
+	}
+
+	dir, _ := os.Getwd()
+	filepathname := filepath.Join(dir, "testdata", "isbn.txt")
+	files = []string{filepathname}
+	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
+	if err == nil && cnt == 6 {
+		t.Fatal("failed test")
+	}
+
+	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
+	if err != nil {
+		t.Fatal("failed test (query fail")
+	}
+	if res.Results.NumFound != 6 {
+		t.Errorf("failed test (result num found unmatched) Actual numFound=%d", res.Results.NumFound)
+	}
+	/*
+		for _, v := range res.Results.Docs
+			v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
+			//TODO: ぽっぽ焼き がハイライトさせたい
+			assert.Contains(t, v2, "<em>ぽっぽ</em>")
+		}
+
+	*/
+}
+
 func TestFetchMaterialFromNDLByISBN(t *testing.T) {
-	data, err := FetchMaterialFromNDLByISBN("9784480689108")
+
+	//	data, err := FetchMaterialFromNDLByISBN("9784480689108")
+	data, err := FetchMaterialFromNDLByISBN("9784873119694")
 	if err != nil {
 		t.Fatal("failed test")
 	}
 	numOfRecords, _ := strconv.Atoi(data.NumberOfRecords)
-	if numOfRecords == 1 {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, numOfRecords, 1)
+
+	rdf := data.Records.Record.RecordData.RDF
+	assert.Equal(t, rdf.BibResource.Title.Description.Value, "実用Go言語 : システム開発の現場で知っておきたいアドバイス")
 
 }
 
