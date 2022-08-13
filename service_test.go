@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
-	"strconv"
 	"testing"
 )
 
@@ -22,23 +21,20 @@ func TestImportFromISBNFile(t *testing.T) {
 
 	files := []string{""}
 	cnt, err := ImportFromISBNFile(files, invalid_solrserveruri, valid_solrcorename)
-	if err == nil {
-		t.Fatal("failed test")
-	}
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
 
 	files = []string{"mono"}
 	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
-	if err == nil && cnt != 0 {
-		t.Fatal("failed test")
-	}
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
 
 	dir, _ := os.Getwd()
 	filepathname := filepath.Join(dir, "testdata", "isbn.txt")
 	files = []string{filepathname}
 	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
-	if err == nil && cnt == 6 {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, err, nil)
+	assert.Equal(t, cnt, 6)
 
 	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
 	if err != nil {
@@ -59,16 +55,55 @@ func TestImportFromISBNFile(t *testing.T) {
 
 func TestFetchMaterialFromNDLByISBN(t *testing.T) {
 
+	//TODO: NDLサーチのレスポンスはローカル環境から戻す（NDLにつながない）
+
 	//	data, err := FetchMaterialFromNDLByISBN("9784480689108")
-	data, err := FetchMaterialFromNDLByISBN("9784873119694")
+	rdf, err := FetchMaterialFromNDLByISBN("9784873119694")
 	if err != nil {
 		t.Fatal("failed test")
 	}
-	numOfRecords, _ := strconv.Atoi(data.NumberOfRecords)
-	assert.Equal(t, numOfRecords, 1)
+	assert.NotEqual(t, rdf.BibAdminResource.About, "")
 
-	rdf := data.Records.Record.RecordData.RDF
 	assert.Equal(t, rdf.BibResource.Title.Description.Value, "実用Go言語 : システム開発の現場で知っておきたいアドバイス")
+	assert.Equal(t, rdf.BibResource.Title.Description.Transcription, "ジツヨウ ゴーゲンゴ : システム カイハツ ノ ゲンバ デ シッテ オキタイ アドバイス")
+	//assert.Equal(t, rdf.BibResource.Alternative.Description.Value, "Practical Go programming")
+	//assert.Equal(t, rdf.BibResource.Alternative.Description.Value, "Go言語 : 実用 : システム開発の現場で知っておきたいアドバイス")
+	assert.Equal(t, rdf.BibResource.Creator[0].Agent.About, "http://id.ndl.go.jp/auth/entity/00941504")
+	assert.Equal(t, rdf.BibResource.Creator[1].Agent.About, "http://id.ndl.go.jp/auth/entity/032205802")
+	assert.Equal(t, rdf.BibResource.Creator[2].Agent.About, "http://id.ndl.go.jp/auth/entity/032205806")
+	assert.Equal(t, rdf.BibResource.Publisher[0].Agent.Name, "オライリー・ジャパン")
+	assert.Equal(t, rdf.BibResource.Publisher[0].Agent.Transcription, "オライリージャパン")
+	assert.Equal(t, rdf.BibResource.Publisher[0].Agent.Location, "東京")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Name, "オーム社 (発売)")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Transcription, "オームシャ")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Description, "頒布")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Location, "東京")
+
+	assert.Equal(t, rdf.BibResource.PublicationPlace.Datatype, "http://purl.org/dc/terms/ISO3166")
+	assert.Equal(t, rdf.BibResource.PublicationPlace.Text, "JP")
+	assert.Equal(t, rdf.BibResource.Date, "2022.4")
+	assert.Equal(t, rdf.BibResource.Issued.Datatype, "http://purl.org/dc/terms/W3CDTF")
+	assert.Equal(t, rdf.BibResource.Issued.Text, "2022")
+
+	assert.Equal(t, rdf.BibResource.Description[0], "機器種別 : 機器不用")
+	assert.Equal(t, rdf.BibResource.Description[1], "キャリア種別 : 冊子")
+	assert.Equal(t, rdf.BibResource.Description[2], "表現種別 : テキスト")
+	assert.Equal(t, rdf.BibResource.Description[3], "索引あり")
+	assert.Equal(t, rdf.BibResource.Description[4], "NDC（9版）はNDC（10版）を自動変換した値である。")
+
+	assert.Equal(t, rdf.BibResource.Subject[0].Description.About, "http://id.ndl.go.jp/auth/ndlsh/00569223")
+	assert.Equal(t, rdf.BibResource.Subject[0].Description.Value, "プログラミング (コンピュータ)")
+	assert.Equal(t, rdf.BibResource.Subject[1].Resource, "http://id.ndl.go.jp/class/ndc10/007.64")
+	assert.Equal(t, rdf.BibResource.Subject[2].Resource, "http://id.ndl.go.jp/class/ndc9/007.64")
+	assert.Equal(t, rdf.BibResource.Subject[3].Resource, "http://id.ndl.go.jp/class/ndlc/M159")
+
+	assert.Equal(t, rdf.BibResource.Language[0].Datatype, "http://purl.org/dc/terms/ISO639-2")
+	assert.Equal(t, rdf.BibResource.Language[0].Text, "jpn")
+
+	assert.Equal(t, rdf.BibResource.Extent[0], "436p ; 24cm")
+	assert.Equal(t, rdf.BibResource.Price[0], "3600円")
+	assert.Equal(t, rdf.BibResource.MaterialType[0].Resource, "http://ndl.go.jp/ndltype/Book")
+	assert.Equal(t, rdf.BibResource.MaterialType[0].Label, "図書")
 
 }
 
@@ -83,19 +118,16 @@ func TestImportFromFileNCNDLRDF(t *testing.T) {
 
 	files := []string{"nonono"}
 	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
-	if err == nil {
-		t.Fatal("failed test")
-	}
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
 
 	dir, _ := os.Getwd()
 	filepathname := filepath.Join(dir, "testdata", "000462.xml")
 
 	files = []string{filepathname}
 	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
-	if err != nil {
-		t.Error(err)
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, err, nil)
+
 }
 
 func TestExtnameToMediaTypeSuccess(t *testing.T) {

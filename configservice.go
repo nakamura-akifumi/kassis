@@ -44,6 +44,9 @@ type KENVCONF struct {
 	WebServer struct {
 		Listen string `json:"listen"`
 	} `json:"web"`
+	Ndl struct {
+		SRU string `json:"sru"`
+	} `json:"ndl"`
 	Solr struct {
 		Home      string `json:"home"`
 		Serveruri string `json:"serveruri"`
@@ -165,6 +168,8 @@ func GenerateDefaultConfigSet() {
 	cfg.Solr.Home = solrhome
 
 	cfg.Tika.Home = apphome
+
+	cfg.Ndl.SRU = "https://iss.ndl.go.jp/api/sru"
 
 	var fps []FileProcessor
 	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})

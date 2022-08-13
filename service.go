@@ -347,7 +347,7 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 
 		for _, r := range dcndloaipmh.ListRecords.Record {
 			materialid := r.Header.Identifier
-			bibresource := r.Metadata.RDF.BibResource[0]
+			bibresource := r.Metadata.RDF.BibResource
 			title := bibresource.Title.Description.Value
 			title_transcription := bibresource.Title.Description.Transcription
 			uniform_title := bibresource.UniformTitle.Description.Value
@@ -439,20 +439,15 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 			if isbn == "" {
 				continue
 			}
-			data, err := FetchMaterialFromNDLByISBN(isbn)
+			rdf, err := FetchMaterialFromNDLByISBN(isbn)
 			if err != nil {
 				fmt.Println(err)
 			}
 
-			//TODO: store to solr
-			//fmt.Printf("%+v", data)
-			//fmt.Println(data.NumberOfRecords)
-			fmt.Printf("isbn:%s r:%s\n", isbn, data.NumberOfRecords)
-			numOfRecords, _ := strconv.Atoi(data.NumberOfRecords)
-			if numOfRecords > 0 {
-				fmt.Println(data.Records.Record[0].RecordData.RDF.BibAdminResource.About)
-				fmt.Println(data.Records.Record[0].RecordData.RDF.BibResource.Title.Description.Value)
-				fmt.Println(data.Records.Record[0].RecordData.RDF.BibResource.Title.Description.Transcription)
+			fmt.Printf("isbn:%s \n", isbn)
+			if rdf.BibAdminResource.About != "" {
+				//TODO: store to solr
+				fmt.Println(rdf.BibResource.Title.Description.Value)
 			}
 		}
 		fi.Close()
@@ -460,24 +455,30 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 	return successCount, nil
 }
 
-func FetchMaterialFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
+func FetchMaterialFromNDLByISBN(isbn string) (*NDLRDF, error) {
 	var r NDLRDF
 	res, err := searchRetrieveResponseFromNDLByISBN(isbn)
 	numOfRecords, _ := strconv.Atoi(res.NumberOfRecords)
-	if numOfRecords > 0 {
+	if numOfRecords == 0 {
+		err = fmt.Errorf("no record by isbn (%s)", isbn)
+	} else {
 		for _, rec := range res.Records.Record {
 			if rec.RecordData.RDF.BibAdminResource.CatalogingStatus != "" { // C7 or C3
 				r = rec.RecordData.RDF
+				break
 			}
 		}
+		if r.BibAdminResource.CatalogingStatus == "" {
+			r = res.Records.Record[0].RecordData.RDF
+		}
 
-		fmt.Println(r.BibAdminResource.About)
-		fmt.Println(r.BibResource.Title.Description.Value)
-		fmt.Println(r.BibResource.Title.Description.Transcription)
+		//fmt.Println(r.BibAdminResource.About)
+		//fmt.Println(r.BibResource.Title.Description.Value)
+		//fmt.Println(r.BibResource.Title.Description.Transcription)
 
 	}
 
-	return res, err
+	return &r, err
 }
 
 func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
@@ -490,6 +491,7 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 			//DisableCompression: true,
 		},
 	}
+	//TODO: configを利用する（テスト時はローカルサーバを参照するようにする）
 	endpoint := "https://iss.ndl.go.jp/api/sru"
 	data := SearchRetrieveResponse{}
 
