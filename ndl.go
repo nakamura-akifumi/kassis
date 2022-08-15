@@ -1,6 +1,10 @@
 package kassiscore
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"github.com/rs/zerolog/log"
+	"github.com/vanng822/go-solr/solr"
+)
 
 type SearchRetrieveResponse struct {
 	XMLName            xml.Name `xml:"searchRetrieveResponse"`
@@ -44,6 +48,11 @@ type DCNDLOAIPMH struct {
 				RDF  NDLRDF `xml:"RDF"`
 			} `xml:"metadata"`
 		} `xml:"record"`
+		ResumptionToken struct {
+			Text             string `xml:",chardata"`
+			CompleteListSize string `xml:"completeListSize,attr"`
+			Cursor           string `xml:"cursor,attr"`
+		} `xml:"resumptionToken"`
 	} `xml:"ListRecords"`
 }
 
@@ -254,3 +263,63 @@ type NDLRDF struct {
 		HoldingIssues   string   `xml:"holdingIssues"`
 	} `xml:"Item"`
 } /* `xml:"RDF"` */
+
+func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
+	materialid := rdf.BibAdminResource.About
+	br := rdf.BibResource
+	title := br.Title.Description.Value
+	//title_transcription := br.Title.Description.Transcription
+	//uniform_title := br.UniformTitle.Description.Value
+	//uniform_title_transcription := br.UniformTitle.Description.Transcription
+	//volume := br.Volume.Description.Value
+	//volume_transcription := br.Volume.Description.Transcription
+	//volume_title := br.VolumeTitle.Description.Value
+	//volume_title_transcription := br.VolumeTitle.Description.Transcription
+	//alternative := br.Alternative.Description.Value
+	//alternative_transcription := br.Alternative.Description.Transcription
+	//TODO: データ確認
+	//alternative_volume
+	//alternative_volume_title
+	//series_title := ""
+	//series_title_transcription := ""
+	if len(br.SeriesTitle) > 0 {
+		//TODO: 配列対応
+		//series_title = br.SeriesTitle[0].Description.Value
+		//series_title_transcription = br.SeriesTitle[0].Description.Transcription
+	}
+	//edition := br.Edition
+	/*
+		creator := ""
+		creator_transcription := ""
+		creator_identifier := ""
+		creator_literal := ""
+
+		//TODO: 配列対応
+		if len(br.Creator) > 0 {
+			creator = br.Creator[0].Agent.Name
+			creator_transcription = br.Creator[0].Agent.Transcription
+			//TODO: creatorにすべきかagentに収めるか
+			creator_identifier = br.Creator[0].Agent.About
+			creator_literal = br.Creator[0].Text
+		}
+	*/
+	//TODO: データ確認
+	//creator_alternative_literal :=
+
+	mediatype := rdf.BibResource.MaterialType[0].Resource
+
+	//TODO: まとめて
+	vparams := map[string]string{
+		"mediatype":  mediatype,
+		"foldername": "",
+		"filename":   "",
+		"title":      title,
+	}
+
+	err := SolrAddDocument(si, materialid, "MENIFESTAION", []string{}, vparams)
+	if err != nil {
+		log.Fatal().Err(err)
+		return err
+	}
+	return nil
+}

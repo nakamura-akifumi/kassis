@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -346,51 +347,11 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 		}
 
 		for _, r := range dcndloaipmh.ListRecords.Record {
-			materialid := r.Header.Identifier
-			bibresource := r.Metadata.RDF.BibResource
-			title := bibresource.Title.Description.Value
-			title_transcription := bibresource.Title.Description.Transcription
-			uniform_title := bibresource.UniformTitle.Description.Value
-			uniform_title_transcription := bibresource.UniformTitle.Description.Transcription
-			volume := bibresource.Volume.Description.Value
-			volume_transcription := bibresource.Volume.Description.Transcription
-			volume_title := bibresource.VolumeTitle.Description.Value
-			volume_title_transcription := bibresource.VolumeTitle.Description.Transcription
-			alternative := bibresource.Alternative.Description.Value
-			alternative_transcription := bibresource.Alternative.Description.Transcription
-			//TODO: データ確認
-			//alternative_volume
-			//alternative_volume_title
-			series_title := ""
-			series_title_transcription := ""
-			if len(bibresource.SeriesTitle) > 0 {
-				//TODO: 配列対応
-				series_title = bibresource.SeriesTitle[0].Description.Value
-				series_title_transcription = bibresource.SeriesTitle[0].Description.Transcription
+			err := AddSolrDocumentNDLRDF(si, &r.Metadata.RDF)
+			if err != nil {
+				log.Fatal().Err(err)
 			}
-			edition := bibresource.Edition
 
-			creator := ""
-			creator_transcription := ""
-			creator_identifier := ""
-			creator_literal := ""
-
-			//TODO: 配列対応
-			if len(bibresource.Creator) > 0 {
-				creator = bibresource.Creator[0].Agent.Name
-				creator_transcription = bibresource.Creator[0].Agent.Transcription
-				//TODO: creatorにすべきかagentに収めるか
-				creator_identifier = bibresource.Creator[0].Agent.About
-				creator_literal = bibresource.Creator[0].Text
-			}
-			//TODO: データ確認
-			//creator_alternative_literal :=
-
-			fmt.Println(materialid, title, title_transcription, uniform_title, uniform_title_transcription)
-			fmt.Println(volume, volume_transcription, volume_title, volume_title_transcription)
-			fmt.Println(alternative, alternative_transcription)
-			fmt.Println(series_title, series_title_transcription, edition)
-			fmt.Println(creator, creator_transcription, creator_identifier, creator_literal)
 		}
 		fi.Close()
 	}
@@ -543,7 +504,120 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 
 	// for debug
 	writefilename, _ := os.Getwd()
-	writefilename = filepath.Join(writefilename, "ext", "sru_response_"+isbn+".txt")
+	writefilename = filepath.Join(writefilename, "ext", "sru", "sru_response_"+isbn+".txt")
+	err = ioutil.WriteFile(writefilename, body, 0666)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	result.End(time.Now())
+
+	if err := xml.Unmarshal(body, &data); err != nil {
+		fmt.Println(err)
+		return &data, err
+	}
+
+	//fmt.Println(data)
+
+	return &data, nil
+}
+
+func FetchMaterialFromNDLOAIPMH(filterdate string) ([]NDLRDF, error) {
+	token := ""
+	records := []NDLRDF{}
+
+	r := regexp.MustCompile(`^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`)
+	if r.MatchString(filterdate) == false {
+		return records, fmt.Errorf("Invalid filterdate (Expect a date format: yyyy-MM-dd)")
+	}
+
+	for {
+		res, err := searchRetrieveResponseFromNDL_OAIPMH(filterdate, filterdate, token)
+		if err != nil {
+			fmt.Println(err)
+			return records, err
+		}
+		if res.ListRecords.ResumptionToken.Text == "" {
+			break
+		}
+		token = res.ListRecords.ResumptionToken.Text
+		for _, r := range res.ListRecords.Record {
+			records = append(records, r.Metadata.RDF)
+		}
+		fmt.Println("@==next-1")
+		fmt.Println(token)
+		time.Sleep(time.Second * 3)
+		fmt.Println("@==next-2")
+
+	}
+
+	fmt.Println("===")
+	fmt.Println(len(records))
+
+	return records, nil
+}
+
+func searchRetrieveResponseFromNDL_OAIPMH(fromdate string, untildate string, token string) (*DCNDLOAIPMH, error) {
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			// DisableKeepAlives: true,
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+			//DisableCompression: true,
+		},
+	}
+	//TODO: configを利用する（テスト時はローカルサーバを参照するようにする）
+	endpoint := "https://iss.ndl.go.jp/api/oaipmh"
+	data := DCNDLOAIPMH{}
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return &data, err
+	}
+	q := u.Query()
+	q.Add("verb", "ListRecords")
+	q.Add("metadataPrefix", "dcndl")
+	q.Add("from", fromdate)
+	q.Add("until", untildate)
+	if token != "" {
+		q.Add("token", token)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s+%s/%s", VERSION, REVISION, runtime.GOOS))
+
+	result := new(httpstat.Result)
+	ctx := httpstat.WithHTTPStat(req.Context(), result)
+	req = req.WithContext(ctx)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+	if resp.StatusCode != 200 {
+		fmt.Println("Error Response:", resp.Status)
+		resp.Body.Close()
+		return &data, err
+	}
+
+	//fmt.Println(len(string(body)))
+	//fmt.Println(string(body))
+
+	// for debug
+	writefilename, _ := os.Getwd()
+	writefilename = filepath.Join(writefilename, "ext", "oaipmh", "oaipmh_response_"+fromdate+"_"+untildate+".txt")
 	err = ioutil.WriteFile(writefilename, body, 0666)
 	if err != nil {
 		fmt.Println(err)

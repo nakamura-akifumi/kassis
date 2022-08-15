@@ -45,7 +45,8 @@ type KENVCONF struct {
 		Listen string `json:"listen"`
 	} `json:"web"`
 	Ndl struct {
-		SRU string `json:"sru"`
+		APIENDPOINT_SRU    string `json:"apiendpoint_sru"`
+		APIENDPOINT_OAIPMH string `json:"apiendpoint_oaipmh"`
 	} `json:"ndl"`
 	Solr struct {
 		Home      string `json:"home"`
@@ -169,7 +170,8 @@ func GenerateDefaultConfigSet() {
 
 	cfg.Tika.Home = apphome
 
-	cfg.Ndl.SRU = "https://iss.ndl.go.jp/api/sru"
+	cfg.Ndl.APIENDPOINT_SRU = "https://iss.ndl.go.jp/api/sru"
+	cfg.Ndl.APIENDPOINT_OAIPMH = "https://iss.ndl.go.jp/api/oaipmh"
 
 	var fps []FileProcessor
 	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})
