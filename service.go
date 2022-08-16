@@ -504,7 +504,7 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 
 	// for debug
 	writefilename, _ := os.Getwd()
-	writefilename = filepath.Join(writefilename, "ext", "sru", "sru_response_"+isbn+".txt")
+	writefilename = filepath.Join(writefilename, "ext", "temp", "sru", "sru_response_"+isbn+".txt")
 	err = ioutil.WriteFile(writefilename, body, 0666)
 	if err != nil {
 		fmt.Println(err)
@@ -523,7 +523,7 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 }
 
 func FetchMaterialFromNDLOAIPMH(filterdate string) ([]NDLRDF, error) {
-	token := ""
+	resumptionToken := ""
 	records := []NDLRDF{}
 
 	r := regexp.MustCompile(`^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`)
@@ -532,27 +532,26 @@ func FetchMaterialFromNDLOAIPMH(filterdate string) ([]NDLRDF, error) {
 	}
 
 	for {
-		res, err := searchRetrieveResponseFromNDL_OAIPMH(filterdate, filterdate, token)
+		res, err := searchRetrieveResponseFromNDL_OAIPMH(filterdate, filterdate, resumptionToken)
 		if err != nil {
 			fmt.Println(err)
 			return records, err
 		}
-		if res.ListRecords.ResumptionToken.Text == "" {
-			break
-		}
-		token = res.ListRecords.ResumptionToken.Text
+
+		//completeListSize, _ = strconv.Atoi(res.ListRecords.ResumptionToken.CompleteListSize)
+		fmt.Printf("cursol/completeListSize:%s/%s", res.ListRecords.ResumptionToken.Cursor, res.ListRecords.ResumptionToken.CompleteListSize)
+
 		for _, r := range res.ListRecords.Record {
 			records = append(records, r.Metadata.RDF)
 		}
-		fmt.Println("@==next-1")
-		fmt.Println(token)
-		time.Sleep(time.Second * 3)
-		fmt.Println("@==next-2")
+		if res.ListRecords.ResumptionToken.Text == "" {
+			break
+		}
+		resumptionToken = res.ListRecords.ResumptionToken.Text
 
+		//TODO: 待機時間をconfigから読む
+		time.Sleep(time.Second * 1)
 	}
-
-	fmt.Println("===")
-	fmt.Println(len(records))
 
 	return records, nil
 }
@@ -576,18 +575,23 @@ func searchRetrieveResponseFromNDL_OAIPMH(fromdate string, untildate string, tok
 		return &data, err
 	}
 	q := u.Query()
+
 	q.Add("verb", "ListRecords")
-	q.Add("metadataPrefix", "dcndl")
-	q.Add("from", fromdate)
-	q.Add("until", untildate)
+
 	if token != "" {
-		q.Add("token", token)
+		q.Add("resumptionToken", token)
+	} else {
+		q.Add("metadataPrefix", "dcndl")
+		q.Add("from", fromdate)
+		q.Add("until", untildate)
 	}
 	u.RawQuery = q.Encode()
 
+	fmt.Println(u.String())
+
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
-		panic(err)
+		return &data, err
 	}
 
 	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s+%s/%s", VERSION, REVISION, runtime.GOOS))
@@ -598,13 +602,13 @@ func searchRetrieveResponseFromNDL_OAIPMH(fromdate string, untildate string, tok
 
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		return &data, err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		panic(err)
+		return &data, err
 	}
 	if resp.StatusCode != 200 {
 		fmt.Println("Error Response:", resp.Status)
@@ -612,25 +616,23 @@ func searchRetrieveResponseFromNDL_OAIPMH(fromdate string, untildate string, tok
 		return &data, err
 	}
 
-	//fmt.Println(len(string(body)))
-	//fmt.Println(string(body))
-
 	// for debug
 	writefilename, _ := os.Getwd()
-	writefilename = filepath.Join(writefilename, "ext", "oaipmh", "oaipmh_response_"+fromdate+"_"+untildate+".txt")
+	t := time.Now()
+	filename := "oaipmh_response_" + t.Format("20060102150405") + "_" + fromdate + "_" + untildate + ".txt"
+	writefilename = filepath.Join(writefilename, "ext", "temp", "oaipmh", filename)
 	err = ioutil.WriteFile(writefilename, body, 0666)
 	if err != nil {
 		fmt.Println(err)
 	}
 
 	result.End(time.Now())
+	log.Debug().Msg(fmt.Sprintf("%+v", result))
 
 	if err := xml.Unmarshal(body, &data); err != nil {
 		fmt.Println(err)
 		return &data, err
 	}
-
-	//fmt.Println(data)
 
 	return &data, nil
 }

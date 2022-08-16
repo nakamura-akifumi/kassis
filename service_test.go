@@ -54,7 +54,7 @@ func TestSearchRetrieveResponseFromNDL_OAIPMH(t *testing.T) {
 	//TODO: NDLサーチのレスポンスはローカル環境から戻す（NDLにつながない）
 	sr, err := searchRetrieveResponseFromNDL_OAIPMH("2022-07-01", "2022-07-01", "")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, sr.ListRecords.ResumptionToken.CompleteListSize, "8977")
+	assert.Equal(t, sr.ListRecords.ResumptionToken.CompleteListSize, "8975")
 	assert.Equal(t, sr.ListRecords.ResumptionToken.Text, "dcndl/2022-07-01T00:00:00Z/2022-07-02T00:00:00Z//200/1656633612463,16566336124535346")
 	rdf := sr.ListRecords.Record[0].Metadata.RDF
 	assert.NotEqual(t, rdf.BibResource.Title.Description.Value, "")
@@ -64,7 +64,7 @@ func TestFetchMaterialFromNDLOAIPMH(t *testing.T) {
 	//TODO: NDLサーチのレスポンスはローカル環境から戻す（NDLにつながない）
 	list, err := FetchMaterialFromNDLOAIPMH("2022-07-01")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, len(list), 8977)
+	assert.Equal(t, len(list), 8975)
 
 }
 
