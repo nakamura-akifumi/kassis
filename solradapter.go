@@ -13,6 +13,26 @@ import (
 	"strings"
 )
 
+func SolrClearDocument(uriaddress string, corename string) error {
+
+	uri := uriaddress + "/solr"
+	si, err := solr.NewSolrInterface(uri, corename)
+	if err != nil {
+		log.Fatal().
+			Err(err).
+			Msgf("Connection error.")
+		return err
+	}
+
+	_, err = si.DeleteAll()
+	if err != nil {
+		log.Fatal().Err(err)
+		return err
+	}
+
+	return nil
+}
+
 func SolrAddDocument(si *solr.SolrInterface, materialid string, objecttype string, contents []string, vparams map[string]string) error {
 
 	uuidObj, _ := uuid.NewUUID()

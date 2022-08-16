@@ -48,6 +48,8 @@ sudo apt install -y golang-go
 sudo apt install -y git
 ```
 
+JAVA_HOMEを設定してください。
+
 ### Windows 11 向け
 
 - JDK のインストール
@@ -161,6 +163,14 @@ go test github.com/nakamura-akifumi/kassis/...
 ### 実行ファイルをテスト
 
 （あとで考える。自動テストしたい）
+
+## 開発メモ
+
+- DCNDL対応表
+https://docs.google.com/spreadsheets/d/1KuHi0rj-0NL1ta5oZxP3PvGH_meK2cD4sfAjtMTfajA/edit#gid=0
+
+- 開発内容一覧、ロードマップ
+  https://docs.google.com/spreadsheets/d/1M6EUMdPJlRbo9A6nIU-483PFpbZe8WPBb7aFlBHBYe4/edit?usp=sharing
 
 # Author, Contributor
 

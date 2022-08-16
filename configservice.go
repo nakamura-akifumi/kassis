@@ -44,6 +44,10 @@ type KENVCONF struct {
 	WebServer struct {
 		Listen string `json:"listen"`
 	} `json:"web"`
+	Ndl struct {
+		APIENDPOINT_SRU    string `json:"apiendpoint_sru"`
+		APIENDPOINT_OAIPMH string `json:"apiendpoint_oaipmh"`
+	} `json:"ndl"`
 	Solr struct {
 		Home      string `json:"home"`
 		Serveruri string `json:"serveruri"`
@@ -61,6 +65,10 @@ const OKLBL = "\u001B[32mOK\u001B[0m"
 
 const TIKAAPPURL = "https://dlcdn.apache.org/tika/2.4.1/tika-server-standard-2.4.1.jar"
 const SOLRAPPURL = "https://www.apache.org/dyn/closer.lua/lucene/solr/8.11.2/solr-8.11.2.zip?action=download"
+
+var (
+	KCONF *KENVCONF
+)
 
 func DownloadApps() {
 	log.Info().Msg("download tika-server")
@@ -162,6 +170,9 @@ func GenerateDefaultConfigSet() {
 
 	cfg.Tika.Home = apphome
 
+	cfg.Ndl.APIENDPOINT_SRU = "https://iss.ndl.go.jp/api/sru"
+	cfg.Ndl.APIENDPOINT_OAIPMH = "https://iss.ndl.go.jp/api/oaipmh"
+
 	var fps []FileProcessor
 	fps = append(fps, FileProcessor{Filenamematch: "*.xlsx", Excludesheetname: []string{"目次"}})
 	cfg.Files = fps
@@ -204,6 +215,13 @@ func GenerateDefaultConfigSet() {
 
 func StartSolr(cfg *KENVCONF) {
 	fmt.Println("start solr.")
+
+	// step3-b : check java home
+	javahome := os.Getenv("JAVA_HOME")
+	if javahome == "" {
+		fmt.Println("error: no set JAVA_HOME")
+		return
+	}
 
 	solrbin := filepath.Join(cfg.Solr.Home, "bin")
 	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
@@ -460,8 +478,9 @@ func dism(msg string, isError bool) {
 
 // CheckConfigAndConnections は、設定が正しいかをチェックする関数です。
 // display mode : full or error-only
-func CheckConfigAndConnections(displaymode string) {
+func CheckConfigAndConnections(displaymode string) error {
 
+	var last_error error
 	DisplayModeOnCheckFunction = displaymode
 
 	fmt.Printf("check start: %s\n", DisplayModeOnCheckFunction)
@@ -470,7 +489,7 @@ func CheckConfigAndConnections(displaymode string) {
 	filename, err := getConfigPath()
 	if err != nil {
 		dism("read config file:"+NGLBL+"\n", MSGERROR)
-		return
+		return err
 	}
 
 	dism("read config file:"+OKLBL+"\n", MSGINFO)
@@ -484,6 +503,7 @@ func CheckConfigAndConnections(displaymode string) {
 
 	f, err := os.Stat(extdirname)
 	if err == nil && f.IsDir() {
+		last_error = err
 		dism(fmt.Sprintf("ext dirname:"+OKLBL+" (%s)\n", extdirname), MSGINFO)
 	} else {
 		dism(fmt.Sprintf("ext dirname:"+NGLBL+" (%s)\n", extdirname), MSGERROR)
@@ -492,6 +512,7 @@ func CheckConfigAndConnections(displaymode string) {
 	// step3 : check java
 	out, err := exec.Command("java", "--version").Output()
 	if err != nil {
+		last_error = err
 		dism("Java command:"+NGLBL+"\n", MSGERROR)
 		dism(err.Error(), MSGERROR)
 	} else {
@@ -501,9 +522,27 @@ func CheckConfigAndConnections(displaymode string) {
 		dism("---\n", MSGINFO)
 	}
 
+	// step3-b : check java home
+	javahome := os.Getenv("JAVA_HOME")
+	if javahome == "" {
+		last_error = fmt.Errorf("no set JAVA_HOME")
+		dism("Env JAVA_HOME:"+NGLBL+"\n", MSGERROR)
+	} else {
+		javaexe := filepath.Join(javahome, "bin", "java.exe")
+		if runtime.GOOS != "windows" {
+			javaexe = filepath.Join(javahome, "bin", "java")
+		}
+		_, err := os.Stat(javaexe)
+		if err != nil {
+			last_error = fmt.Errorf("no find java.exe")
+			dism(fmt.Sprintf("ERROR: java.exe "+NGLBL+" not found in %s : Please set JAVA_HOME to a valid JRE / JDK directory.\n", javaexe), MSGERROR)
+		}
+	}
+
 	// step4 : check solr
 	solrhome := filepath.Join(cfg.Solr.Home)
 	if f, err := os.Stat(solrhome); os.IsNotExist(err) || !f.IsDir() {
+		last_error = fmt.Errorf("no exists solr home: %s", solrhome)
 		dism(fmt.Sprintf("Solr home:"+NGLBL+" %s\n", solrhome), MSGERROR)
 	} else {
 		dism(fmt.Sprintf("Solr home:"+OKLBL+" %s\n", solrhome), MSGINFO)
@@ -511,6 +550,7 @@ func CheckConfigAndConnections(displaymode string) {
 
 	solrbin := filepath.Join(cfg.Solr.Home, "bin")
 	if f, err := os.Stat(solrbin); os.IsNotExist(err) || !f.IsDir() {
+		last_error = fmt.Errorf("no exists solr bin: %s", solrbin)
 		dism(fmt.Sprintf("Solr bin:"+NGLBL+" %s\n", solrbin), MSGERROR)
 	} else {
 		dism(fmt.Sprintf("Solr bin:"+OKLBL+" %s\n", solrbin), MSGINFO)
@@ -518,6 +558,7 @@ func CheckConfigAndConnections(displaymode string) {
 
 	defaultsolrconfigset := filepath.Join(cfg.Solr.Home, "server", "solr", "configsets", "_default")
 	if f, err := os.Stat(defaultsolrconfigset); os.IsNotExist(err) || !f.IsDir() {
+		last_error = fmt.Errorf("no default config set: %s", defaultsolrconfigset)
 		dism(fmt.Sprintf("Solr default config set:"+NGLBL+" %s\n", defaultsolrconfigset), MSGERROR)
 	} else {
 		dism(fmt.Sprintf("Solr default config set:"+OKLBL+" %s\n", defaultsolrconfigset), MSGINFO)
@@ -527,34 +568,40 @@ func CheckConfigAndConnections(displaymode string) {
 	uri := cfg.Solr.Serveruri + "/solr"
 	si, err := solr.NewSolrInterface(uri, cfg.Solr.Corename)
 	if err != nil {
-		dism(fmt.Sprintf("Solr connection:ng error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
+		last_error = fmt.Errorf("no solr coneection")
+		dism(fmt.Sprintf("Solr connection:"+NGLBL+" error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
 	} else {
 		//admin core
 		vs, err := SolrServerPing(cfg.Solr.Serveruri)
 		if err != nil {
+			last_error = fmt.Errorf("no solr admincore")
 			dism(fmt.Sprintf("Solr admincore:"+NGLBL+" error: %s\n", err.Error()), MSGERROR)
 		} else {
 			dism(fmt.Sprintf("Solr admincore:"+OKLBL+" solr-spec-version:%s\n", vs), MSGINFO)
-		}
 
-		//core check
-		_, qtime, err := si.Ping()
-		if err != nil {
-			dism(fmt.Sprintf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
-		} else {
-			dism(fmt.Sprintf("Solr core ping:"+OKLBL+" (%s %s) qtime:%d\n", cfg.Solr.Serveruri, cfg.Solr.Corename, qtime), MSGINFO)
+			//core check
+			_, qtime, err := si.Ping()
+			if err != nil {
+				last_error = fmt.Errorf("solr ping error")
+				dism(fmt.Sprintf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
+			} else {
+				dism(fmt.Sprintf("Solr core ping:"+OKLBL+" (%s %s) qtime:%d\n", cfg.Solr.Serveruri, cfg.Solr.Corename, qtime), MSGINFO)
 
-			//TODO: core and schema check
+				//TODO: core and schema check
+			}
 		}
 	}
 
 	// step6 : check tika
 	vs, err := TikaPing(cfg.Tika.Serveruri)
 	if err != nil {
+		last_error = fmt.Errorf("tika ping error")
 		dism(fmt.Sprintf("Tika ping:"+NGLBL+" (%s) %s\n", cfg.Tika.Serveruri, err), MSGERROR)
 	} else {
 		dism(fmt.Sprintf("Tika ping:"+OKLBL+" (%s) %s\n", cfg.Tika.Serveruri, vs), MSGINFO)
 	}
+
+	return last_error
 }
 
 func TikaPing(tikauri string) (string, error) {

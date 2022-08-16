@@ -8,21 +8,157 @@ import (
 	"testing"
 )
 
+func TestImportFromISBNFile(t *testing.T) {
+	valid_solrserveruri := "http://localhost:8983"
+	valid_solrcorename := "kassiscore_test"
+
+	invalid_solrserveruri := "http://localhost:8989"
+
+	err := SolrClearDocument(valid_solrserveruri, valid_solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	files := []string{""}
+	cnt, err := ImportFromISBNFile(files, invalid_solrserveruri, valid_solrcorename)
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
+
+	files = []string{"mono"}
+	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
+
+	dir, _ := os.Getwd()
+	filepathname := filepath.Join(dir, "testdata", "isbn.txt")
+	files = []string{filepathname}
+	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, cnt, 6)
+
+	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
+	assert.Equal(t, err, nil)
+	assert.Equal(t, res.Results.NumFound, 6)
+	/*
+		for _, v := range res.Results.Docs
+			v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
+			//TODO: ぽっぽ焼き がハイライトさせたい
+			assert.Contains(t, v2, "<em>ぽっぽ</em>")
+		}
+
+	*/
+}
+
+func TestSearchRetrieveResponseFromNDL_OAIPMH(t *testing.T) {
+
+	//TODO: NDLサーチのレスポンスはローカル環境から戻す（NDLにつながない）
+	sr, err := searchRetrieveResponseFromNDL_OAIPMH("2022-07-01", "2022-07-01", "")
+	assert.Equal(t, err, nil)
+	assert.Equal(t, sr.ListRecords.ResumptionToken.CompleteListSize, "8975")
+	assert.Equal(t, sr.ListRecords.ResumptionToken.Text, "dcndl/2022-07-01T00:00:00Z/2022-07-02T00:00:00Z//200/1656633612463,16566336124535346")
+	rdf := sr.ListRecords.Record[0].Metadata.RDF
+	assert.NotEqual(t, rdf.BibResource.Title.Description.Value, "")
+}
+
+func TestFetchMaterialFromNDLOAIPMH(t *testing.T) {
+	//TODO: NDLサーチのレスポンスはローカル環境から戻す（NDLにつながない）
+	list, err := FetchMaterialFromNDLOAIPMH("2022-07-01")
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(list), 8975)
+
+}
+
+func TestFetchMaterialFromNDLByISBN(t *testing.T) {
+
+	//TODO: NDLサーチのレスポンスはローカル環境から戻す（NDLにつながない）
+	rdf, err := FetchMaterialFromNDLByISBN("")
+	assert.Equal(t, err.Error(), "no record by isbn ()")
+
+	rdf, err = FetchMaterialFromNDLByISBN("xxxxxxxxxxxxx")
+	assert.Equal(t, err.Error(), "no record by isbn (xxxxxxxxxxxxx)")
+
+	rdf, err = FetchMaterialFromNDLByISBN("9784873119694")
+	assert.Equal(t, err, nil)
+
+	assert.NotEqual(t, rdf.BibAdminResource.About, "")
+
+	assert.Equal(t, rdf.BibResource.Title.Description.Value, "実用Go言語 : システム開発の現場で知っておきたいアドバイス")
+	assert.Equal(t, rdf.BibResource.Title.Description.Transcription, "ジツヨウ ゴーゲンゴ : システム カイハツ ノ ゲンバ デ シッテ オキタイ アドバイス")
+	//TODO: alternativeが配列で取得できない
+	//assert.Equal(t, rdf.BibResource.Alternative.Description.Value, "Practical Go programming")
+	//assert.Equal(t, rdf.BibResource.Alternative.Description.Value, "Go言語 : 実用 : システム開発の現場で知っておきたいアドバイス")
+	assert.Equal(t, rdf.BibResource.Creator[0].Agent.About, "http://id.ndl.go.jp/auth/entity/00941504")
+	assert.Equal(t, rdf.BibResource.Creator[1].Agent.About, "http://id.ndl.go.jp/auth/entity/032205802")
+	assert.Equal(t, rdf.BibResource.Creator[2].Agent.About, "http://id.ndl.go.jp/auth/entity/032205806")
+	assert.Equal(t, rdf.BibResource.Publisher[0].Agent.Name, "オライリー・ジャパン")
+	assert.Equal(t, rdf.BibResource.Publisher[0].Agent.Transcription, "オライリージャパン")
+	assert.Equal(t, rdf.BibResource.Publisher[0].Agent.Location, "東京")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Name, "オーム社 (発売)")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Transcription, "オームシャ")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Description, "頒布")
+	assert.Equal(t, rdf.BibResource.Publisher[1].Agent.Location, "東京")
+
+	assert.Equal(t, rdf.BibResource.PublicationPlace.Datatype, "http://purl.org/dc/terms/ISO3166")
+	assert.Equal(t, rdf.BibResource.PublicationPlace.Text, "JP")
+	assert.Equal(t, rdf.BibResource.Date, "2022.4")
+	assert.Equal(t, rdf.BibResource.Issued.Datatype, "http://purl.org/dc/terms/W3CDTF")
+	assert.Equal(t, rdf.BibResource.Issued.Text, "2022")
+
+	assert.Equal(t, rdf.BibResource.Description[0], "機器種別 : 機器不用")
+	assert.Equal(t, rdf.BibResource.Description[1], "キャリア種別 : 冊子")
+	assert.Equal(t, rdf.BibResource.Description[2], "表現種別 : テキスト")
+	assert.Equal(t, rdf.BibResource.Description[3], "索引あり")
+	assert.Equal(t, rdf.BibResource.Description[4], "NDC（9版）はNDC（10版）を自動変換した値である。")
+
+	assert.Equal(t, rdf.BibResource.Subject[0].Description.About, "http://id.ndl.go.jp/auth/ndlsh/00569223")
+	assert.Equal(t, rdf.BibResource.Subject[0].Description.Value, "プログラミング (コンピュータ)")
+	assert.Equal(t, rdf.BibResource.Subject[1].Resource, "http://id.ndl.go.jp/class/ndc10/007.64")
+	assert.Equal(t, rdf.BibResource.Subject[2].Resource, "http://id.ndl.go.jp/class/ndc9/007.64")
+	assert.Equal(t, rdf.BibResource.Subject[3].Resource, "http://id.ndl.go.jp/class/ndlc/M159")
+
+	assert.Equal(t, rdf.BibResource.Language[0].Datatype, "http://purl.org/dc/terms/ISO639-2")
+	assert.Equal(t, rdf.BibResource.Language[0].Text, "jpn")
+
+	assert.Equal(t, rdf.BibResource.Extent[0], "436p ; 24cm")
+	assert.Equal(t, rdf.BibResource.Price[0], "3600円")
+	assert.Equal(t, rdf.BibResource.MaterialType[0].Resource, "http://ndl.go.jp/ndltype/Book")
+	assert.Equal(t, rdf.BibResource.MaterialType[0].Label, "図書")
+
+}
+
+func TestImportFromFileNCNDLRDF(t *testing.T) {
+	solrserveruri := "http://localhost:8983"
+	solrcorename := "kassiscore_test"
+
+	err := SolrClearDocument(solrserveruri, solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	files := []string{"nonono"}
+	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
+
+	dir, _ := os.Getwd()
+	filepathname1 := filepath.Join(dir, "testdata", "ndl", "000462.xml")
+	filepathname2 := filepath.Join(dir, "testdata", "ndl", "001873.xml")
+
+	files = []string{filepathname1, filepathname2}
+	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
+	assert.Equal(t, err, nil)
+
+}
+
 func TestExtnameToMediaTypeSuccess(t *testing.T) {
 	result := ExtnameToMediaType("bar")
-	if result != "application/octet-stream" {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, result, "application/octet-stream")
 
 	result = ExtnameToMediaType("xlsx")
-	if result != "application/octet-stream" {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, result, "application/octet-stream")
 
 	result = ExtnameToMediaType(".xlsx")
-	if result != ContenttypeExcel {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, result, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 }
 
 func TestSolrQuery(t *testing.T) {
@@ -40,17 +176,11 @@ func TestSolrQuery(t *testing.T) {
 
 	files := []string{filepathname}
 	err = ImportFromFile(files, tikaserveruri, solrserveruri, solrcorename)
-	if err != nil {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, err, nil)
 
 	res, err := SolrQuery(solrserveruri, solrcorename, "ぽっぽ焼き")
-	if err != nil {
-		t.Fatal("failed test (query fail")
-	}
-	if res.Results.NumFound != 1 {
-		t.Errorf("failed test (result num found unmatched) Actual numFound=%d", res.Results.NumFound)
-	}
+	assert.Equal(t, err, nil)
+	assert.Equal(t, res.Results.NumFound, 1)
 	for _, v := range res.Highlighting {
 		v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
 		//TODO: ぽっぽ焼き がハイライトさせたい
@@ -71,41 +201,31 @@ func TestImportFromFile(t *testing.T) {
 		defer funcDefer()
 	*/
 	err := SolrClearDocument(solrserveruri, solrcorename)
-	if err != nil {
-		t.Fatal("failed test")
-	}
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "error")
 
 	files := []string{"nonono"}
 
 	err = ImportFromFile(files, tikaserveruri, solrserveruri, solrcorename)
-	//TODO: errメッセージを確認したい（os: Unable to open file ～）
-	if err == nil {
-		t.Fatal("failed test")
-	}
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
 
 	dir, _ := os.Getwd()
 	filepathname := filepath.Join(dir, "testdata", "Book1.xlsx")
 
 	files = []string{filepathname}
 	err = ImportFromFile(files, tikaserveruri, solrserveruri, solrcorename)
-	if err != nil {
-		t.Fatal("failed test")
-	}
+	assert.NotEqual(t, err, nil)
+	assert.Contains(t, err.Error(), "os: Unable to open file")
 
 	res, err := SolrQuery(solrserveruri, solrcorename, "")
-	if err != nil {
-		t.Fatal("failed test (query fail")
-	}
-	if res.Results.NumFound != 8 {
-		t.Errorf("failed test (result num found unmatched) Actual numFound=%d", res.Results.NumFound)
-	}
+	assert.Equal(t, err, nil)
+	assert.Equal(t, res.Results.NumFound, 8)
 
 	dir, _ = os.Getwd()
 	filepathname = filepath.Join(dir, "testdata", "Book1.xlsx")
 	targetid := filepathname + "データ1"
-	if res.Results.Docs[1].Get("materialid").(string) != targetid {
-		t.Errorf("failed test unmatch materialid /expected:%s / actual:%s", targetid, res.Results.Docs[1].Get("materialid").(string))
-	}
+	assert.Equal(t, res.Results.Docs[1].Get("materialid").(string), targetid)
 
 	err = SolrClearDocument(solrserveruri, solrcorename)
 	if err != nil {
@@ -121,12 +241,8 @@ func TestImportFromFile(t *testing.T) {
 	}
 	//TODO: 登録されたデータの内容などを確認したい
 	res, err = SolrQuery(solrserveruri, solrcorename, "")
-	if err != nil {
-		t.Fatal("failed test")
-	}
-	if res.Results.NumFound != 5 {
-		t.Fatal("failed test")
-	}
+	assert.Equal(t, err, nil)
+	assert.Equal(t, res.Results.NumFound, 5)
 
 	err = SolrClearDocument(solrserveruri, solrcorename)
 	if err != nil {

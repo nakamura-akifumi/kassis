@@ -1,13 +1,16 @@
 package kassiscore
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-tika/tika"
 	"github.com/rs/zerolog/log"
+	"github.com/tcnksm/go-httpstat"
 	"github.com/vanng822/go-solr/solr"
 	"io"
 	"io/ioutil"
@@ -15,7 +18,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Material struct {
@@ -51,16 +58,6 @@ const ContenttypePdf string = "application/pdf"
 const ContenttypeText string = "text/plain"
 const ContenttypeWord string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
-// ArrayContains は、配列の中に特定の文字列が含まれるかを返す
-func ArrayContains(arr []string, str string) bool {
-	for _, v := range arr {
-		if v == str {
-			return true
-		}
-	}
-	return false
-}
-
 func ExtnameToMediaType(extname string) string {
 	ct := "application/octet-stream"
 	switch extname {
@@ -74,26 +71,6 @@ func ExtnameToMediaType(extname string) string {
 		ct = ContenttypeWord
 	}
 	return ct
-}
-
-func SolrClearDocument(uriaddress string, corename string) error {
-
-	uri := uriaddress + "/solr"
-	si, err := solr.NewSolrInterface(uri, corename)
-	if err != nil {
-		log.Fatal().
-			Err(err).
-			Msgf("Connection error.")
-		return err
-	}
-
-	_, err = si.DeleteAll()
-	if err != nil {
-		log.Fatal().Err(err)
-		return err
-	}
-
-	return nil
 }
 
 // SolrQuery は、Solrに検索を投げます
@@ -332,6 +309,332 @@ func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype strin
 	})
 
 	return "ok"
+}
+
+func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename string) error {
+	uri := solrserveruri + "/solr"
+	si, err := solr.NewSolrInterface(uri, solrcorename)
+	if err != nil {
+		log.Fatal().Err(err)
+		return err
+	}
+	status, qtime, err := si.Ping()
+	if err != nil {
+		fmt.Printf("Solr core ping:ng (%s %s)\n", solrserveruri, solrcorename)
+		return err
+	}
+	log.Debug().Msgf("Solr Ping status:%s qtime:%d\n", status, qtime)
+
+	successCount := 0
+	for _, filename := range files {
+		fmt.Printf("%d/%d filename:%s\n", successCount+1, len(files), filename)
+
+		fi, err := os.Open(filename)
+		if err != nil {
+			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
+		}
+
+		data, err := ioutil.ReadAll(fi)
+		if err != nil {
+			return err
+		}
+		dcndloaipmh := DCNDLOAIPMH{}
+		err = xml.Unmarshal(data, &dcndloaipmh)
+		if err != nil {
+			fmt.Printf("error: %v", err)
+			fi.Close()
+			return err
+		}
+
+		for _, r := range dcndloaipmh.ListRecords.Record {
+			err := AddSolrDocumentNDLRDF(si, &r.Metadata.RDF)
+			if err != nil {
+				log.Fatal().Err(err)
+			}
+
+		}
+		fi.Close()
+	}
+
+	return nil
+}
+
+func ImportFromISBNFile(files []string, solrserveruri string, solrcorename string) (int, error) {
+	uri := solrserveruri + "/solr"
+	si, err := solr.NewSolrInterface(uri, solrcorename)
+	if err != nil {
+		log.Fatal().Err(err)
+		return 0, err
+	}
+
+	status, qtime, err := si.Ping()
+	if err != nil {
+		fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", solrserveruri, solrcorename)
+		return 0, err
+	}
+	log.Debug().Msgf("Solr Ping status:%s qtime:%d\n", status, qtime)
+
+	successCount := 0
+	for _, filename := range files {
+		fmt.Printf("%d/%d filename:%s\n", successCount+1, len(files), filename)
+
+		fi, err := os.Open(filename)
+		if err != nil {
+			return 0, errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
+		}
+
+		reader := bufio.NewReaderSize(fi, 4096)
+		for {
+			line, _, err := reader.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				fmt.Println(err)
+			}
+
+			isbn := string(line)
+			fmt.Println(isbn)
+
+			isbn = strings.TrimSpace(isbn)
+			if isbn == "" {
+				continue
+			}
+			rdf, err := FetchMaterialFromNDLByISBN(isbn)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			fmt.Printf("isbn:%s \n", isbn)
+			if rdf.BibAdminResource.About != "" {
+				//TODO: store to solr
+				fmt.Println(rdf.BibResource.Title.Description.Value)
+			}
+		}
+		fi.Close()
+	}
+	return successCount, nil
+}
+
+func FetchMaterialFromNDLByISBN(isbn string) (*NDLRDF, error) {
+	var r NDLRDF
+	res, err := searchRetrieveResponseFromNDLByISBN(isbn)
+	numOfRecords, _ := strconv.Atoi(res.NumberOfRecords)
+	if numOfRecords == 0 {
+		err = fmt.Errorf("no record by isbn (%s)", isbn)
+	} else {
+		for _, rec := range res.Records.Record {
+			if rec.RecordData.RDF.BibAdminResource.CatalogingStatus != "" { // C7 or C3
+				r = rec.RecordData.RDF
+				break
+			}
+		}
+		if r.BibAdminResource.CatalogingStatus == "" {
+			r = res.Records.Record[0].RecordData.RDF
+		}
+
+		//fmt.Println(r.BibAdminResource.About)
+		//fmt.Println(r.BibResource.Title.Description.Value)
+		//fmt.Println(r.BibResource.Title.Description.Transcription)
+
+	}
+
+	return &r, err
+}
+
+func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, error) {
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			// DisableKeepAlives: true,
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+			//DisableCompression: true,
+		},
+	}
+	//TODO: configを利用する（テスト時はローカルサーバを参照するようにする）
+	endpoint := "https://iss.ndl.go.jp/api/sru"
+	data := SearchRetrieveResponse{}
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return &data, err
+	}
+	q := u.Query()
+	q.Add("operation", "searchRetrieve")
+	//q.Add("version", "1.2")
+	q.Add("recordSchema", "dcndl")
+	q.Add("recordPacking", "xml")
+	q.Add("onlyBib", "true")
+	q.Add("maximumRecords", "2")
+	//q.Add("inprocess", "false")
+	q.Add("query", fmt.Sprintf("isbn=%s", isbn))
+	q.Add("sortBy", "modified_date.descending")
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s+%s/%s", VERSION, REVISION, runtime.GOOS))
+
+	result := new(httpstat.Result)
+	ctx := httpstat.WithHTTPStat(req.Context(), result)
+	req = req.WithContext(ctx)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+	if resp.StatusCode != 200 {
+		fmt.Println("Error Response:", resp.Status)
+		resp.Body.Close()
+		return &data, err
+	}
+
+	//fmt.Println(len(string(body)))
+	//fmt.Println(string(body))
+
+	// for debug
+	writefilename, _ := os.Getwd()
+	writefilename = filepath.Join(writefilename, "ext", "temp", "sru", "sru_response_"+isbn+".txt")
+	err = ioutil.WriteFile(writefilename, body, 0666)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	result.End(time.Now())
+
+	if err := xml.Unmarshal(body, &data); err != nil {
+		fmt.Println(err)
+		return &data, err
+	}
+
+	//fmt.Println(data)
+
+	return &data, nil
+}
+
+func FetchMaterialFromNDLOAIPMH(filterdate string) ([]NDLRDF, error) {
+	resumptionToken := ""
+	records := []NDLRDF{}
+
+	r := regexp.MustCompile(`^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$`)
+	if r.MatchString(filterdate) == false {
+		return records, fmt.Errorf("Invalid filterdate (Expect a date format: yyyy-MM-dd)")
+	}
+
+	for {
+		res, err := searchRetrieveResponseFromNDL_OAIPMH(filterdate, filterdate, resumptionToken)
+		if err != nil {
+			fmt.Println(err)
+			return records, err
+		}
+
+		//completeListSize, _ = strconv.Atoi(res.ListRecords.ResumptionToken.CompleteListSize)
+		fmt.Printf("cursol/completeListSize:%s/%s", res.ListRecords.ResumptionToken.Cursor, res.ListRecords.ResumptionToken.CompleteListSize)
+
+		for _, r := range res.ListRecords.Record {
+			records = append(records, r.Metadata.RDF)
+		}
+		if res.ListRecords.ResumptionToken.Text == "" {
+			break
+		}
+		resumptionToken = res.ListRecords.ResumptionToken.Text
+
+		//TODO: 待機時間をconfigから読む
+		time.Sleep(time.Second * 1)
+	}
+
+	return records, nil
+}
+
+func searchRetrieveResponseFromNDL_OAIPMH(fromdate string, untildate string, token string) (*DCNDLOAIPMH, error) {
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			// DisableKeepAlives: true,
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+			//DisableCompression: true,
+		},
+	}
+	//TODO: configを利用する（テスト時はローカルサーバを参照するようにする）
+	endpoint := "https://iss.ndl.go.jp/api/oaipmh"
+	data := DCNDLOAIPMH{}
+
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return &data, err
+	}
+	q := u.Query()
+
+	q.Add("verb", "ListRecords")
+
+	if token != "" {
+		q.Add("resumptionToken", token)
+	} else {
+		q.Add("metadataPrefix", "dcndl")
+		q.Add("from", fromdate)
+		q.Add("until", untildate)
+	}
+	u.RawQuery = q.Encode()
+
+	fmt.Println(u.String())
+
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return &data, err
+	}
+
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis/%s+%s/%s", VERSION, REVISION, runtime.GOOS))
+
+	result := new(httpstat.Result)
+	ctx := httpstat.WithHTTPStat(req.Context(), result)
+	req = req.WithContext(ctx)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return &data, err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return &data, err
+	}
+	if resp.StatusCode != 200 {
+		fmt.Println("Error Response:", resp.Status)
+		resp.Body.Close()
+		return &data, err
+	}
+
+	// for debug
+	writefilename, _ := os.Getwd()
+	t := time.Now()
+	filename := "oaipmh_response_" + t.Format("20060102150405") + "_" + fromdate + "_" + untildate + ".txt"
+	writefilename = filepath.Join(writefilename, "ext", "temp", "oaipmh", filename)
+	err = ioutil.WriteFile(writefilename, body, 0666)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	result.End(time.Now())
+	log.Debug().Msg(fmt.Sprintf("%+v", result))
+
+	if err := xml.Unmarshal(body, &data); err != nil {
+		fmt.Println(err)
+		return &data, err
+	}
+
+	return &data, nil
 }
 
 func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, solrcorename string) error {

@@ -4,3 +4,5 @@ tools/app*
 .idea
 bin
 config.json
+ext/temp/oaipmh
+ext/temp/sru
