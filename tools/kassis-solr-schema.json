@@ -48,6 +48,14 @@
         "multiValued":"false"
     },
     "add-field" : {
+        "name":"title_transcription",
+        "type":"text_ja",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
         "name":"mediatype",
         "type":"string",
         "indexed":"true",
@@ -78,6 +86,79 @@
         "stored":"true",
         "required":"false",
         "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"identifiers",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"uniform_title",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"uniform_title_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"volume",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"volume_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"volume_title",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"volume_title_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"alternative",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"alternative_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
     }
+
 }
     

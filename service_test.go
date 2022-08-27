@@ -12,22 +12,24 @@ func TestImportFromISBNFile(t *testing.T) {
 	valid_solrserveruri := "http://localhost:8983"
 	valid_solrcorename := "kassiscore_test"
 
-	invalid_solrserveruri := "http://localhost:8989"
+	//invalid_solrserveruri := "http://localhost:8989"
 
-	err := SolrClearDocument(valid_solrserveruri, valid_solrcorename)
+	err := ClearSolrDocument(valid_solrserveruri, valid_solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
 
 	files := []string{""}
-	cnt, err := ImportFromISBNFile(files, invalid_solrserveruri, valid_solrcorename)
+	cnt, err := ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
 	assert.NotEqual(t, err, nil)
 	assert.Contains(t, err.Error(), "os: Unable to open file")
+	//TODO: solrの件数は0件
 
 	files = []string{"mono"}
 	cnt, err = ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
 	assert.NotEqual(t, err, nil)
 	assert.Contains(t, err.Error(), "os: Unable to open file")
+	//TODO: solrの件数は0件
 
 	dir, _ := os.Getwd()
 	filepathname := filepath.Join(dir, "testdata", "isbn.txt")
@@ -39,14 +41,57 @@ func TestImportFromISBNFile(t *testing.T) {
 	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
 	assert.Equal(t, err, nil)
 	assert.Equal(t, res.Results.NumFound, 6)
-	/*
-		for _, v := range res.Results.Docs
-			v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
-			//TODO: ぽっぽ焼き がハイライトさせたい
-			assert.Contains(t, v2, "<em>ぽっぽ</em>")
-		}
 
-	*/
+	if len(res.Results.Docs) == 0 {
+		t.Fatal("failed test")
+	}
+
+	assert.Equal(t, res.Results.Docs[0].Get("materialid").(string), "http://iss.ndl.go.jp/books/R100000002-I000007578504-00")
+	assert.Equal(t, res.Results.Docs[0].Get("mediatype").(string), "Book")
+	assert.Equal(t, res.Results.Docs[0].Get("objecttype").(string), "MENIFESTAION")
+	assert.Equal(t, res.Results.Docs[0].Get("title").(string), "夜空はなぜ暗い? : オルバースのパラドックスと宇宙論の変遷")
+
+}
+
+func TestImportFromISBNFileS2(t *testing.T) {
+	valid_solrserveruri := "http://localhost:8983"
+	valid_solrcorename := "kassiscore_test"
+
+	err := ClearSolrDocument(valid_solrserveruri, valid_solrcorename)
+	if err != nil {
+		t.Fatal("failed test")
+	}
+
+	dir, _ := os.Getwd()
+	filepathname := filepath.Join(dir, "testdata", "isbns2.txt")
+	files := []string{filepathname}
+	cnt, err := ImportFromISBNFile(files, valid_solrserveruri, valid_solrcorename)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, cnt, 1)
+
+	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
+	assert.Equal(t, err, nil)
+	assert.Equal(t, res.Results.NumFound, 1)
+
+	if len(res.Results.Docs) == 0 {
+		t.Fatal("failed test")
+	}
+
+	assert.Equal(t, res.Results.Docs[0].Get("materialid").(string), "http://iss.ndl.go.jp/books/R100000002-I027713635-00")
+	assert.Equal(t, res.Results.Docs[0].Get("mediatype").(string), "Book")
+	assert.Equal(t, res.Results.Docs[0].Get("objecttype").(string), "MENIFESTAION")
+	assert.Equal(t, res.Results.Docs[0].Get("title").(string), "わかる!図書館情報学シリーズ")
+	assert.Equal(t, res.Results.Docs[0].Get("title_transcription").(string), "ワカル トショカン ジョウホウガク シリーズ")
+	assert.Equal(t, res.Results.Docs[0].Get("volume").(string), "第3巻")
+	assert.Equal(t, res.Results.Docs[0].Get("volume_transcription").(string), "3")
+
+	itfs := res.Results.Docs[0].Get("identifiers").([]interface{})
+	identifers, _ := InterfaceToStringArray(itfs)
+
+	assert.Contains(t, identifers, "JPNO@22822497")
+	assert.Contains(t, identifers, "TOHANMARCNO@33528665")
+	assert.Contains(t, identifers, "ISBN@978-4-585-20503-6")
+
 }
 
 func TestSearchRetrieveResponseFromNDL_OAIPMH(t *testing.T) {
@@ -130,23 +175,25 @@ func TestImportFromFileNCNDLRDF(t *testing.T) {
 	solrserveruri := "http://localhost:8983"
 	solrcorename := "kassiscore_test"
 
-	err := SolrClearDocument(solrserveruri, solrcorename)
+	err := ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
 
 	files := []string{"nonono"}
-	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
+	cnt, err := ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
 	assert.NotEqual(t, err, nil)
 	assert.Contains(t, err.Error(), "os: Unable to open file")
+	assert.Equal(t, cnt, 0)
 
 	dir, _ := os.Getwd()
 	filepathname1 := filepath.Join(dir, "testdata", "ndl", "000462.xml")
 	filepathname2 := filepath.Join(dir, "testdata", "ndl", "001873.xml")
 
 	files = []string{filepathname1, filepathname2}
-	err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
+	cnt, err = ImportFromFileNCNDLRDF(files, solrserveruri, solrcorename)
 	assert.Equal(t, err, nil)
+	assert.Equal(t, cnt, 2000)
 
 }
 
@@ -166,7 +213,7 @@ func TestSolrQuery(t *testing.T) {
 	solrcorename := "kassiscore_test"
 	tikaserveruri := "http://localhost:9998"
 
-	err := SolrClearDocument(solrserveruri, solrcorename)
+	err := ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -200,7 +247,7 @@ func TestImportFromFile(t *testing.T) {
 		}
 		defer funcDefer()
 	*/
-	err := SolrClearDocument(solrserveruri, solrcorename)
+	err := ClearSolrDocument(solrserveruri, solrcorename)
 	assert.NotEqual(t, err, nil)
 	assert.Contains(t, err.Error(), "error")
 
@@ -227,7 +274,7 @@ func TestImportFromFile(t *testing.T) {
 	targetid := filepathname + "データ1"
 	assert.Equal(t, res.Results.Docs[1].Get("materialid").(string), targetid)
 
-	err = SolrClearDocument(solrserveruri, solrcorename)
+	err = ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
 		t.Fatal("failed test")
 	}
@@ -244,7 +291,7 @@ func TestImportFromFile(t *testing.T) {
 	assert.Equal(t, err, nil)
 	assert.Equal(t, res.Results.NumFound, 5)
 
-	err = SolrClearDocument(solrserveruri, solrcorename)
+	err = ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
 		return
 	}
@@ -264,7 +311,7 @@ func TestImportFromFile(t *testing.T) {
 	}
 
 	//txtファイルのテスト
-	err = SolrClearDocument(solrserveruri, solrcorename)
+	err = ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
 		return
 	}
@@ -283,7 +330,7 @@ func TestImportFromFile(t *testing.T) {
 		t.Fatal("failed test")
 	}
 
-	_ = SolrClearDocument(solrserveruri, solrcorename)
+	_ = ClearSolrDocument(solrserveruri, solrcorename)
 
 	dir, _ = os.Getwd()
 	filepathname1 := filepath.Join(dir, "testdata", "Book1.xlsx")

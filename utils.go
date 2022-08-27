@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+func InterfaceToStringArray(itfs []interface{}) ([]string, error) {
+	var arr []string
+	for _, s := range itfs {
+		arr = append(arr, s.(string))
+	}
+	return arr, nil
+}
+
 func NormalizeISBN(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	r := regexp.MustCompile(`[^0-9\-]`)

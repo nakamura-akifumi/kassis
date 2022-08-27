@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func SolrClearDocument(uriaddress string, corename string) error {
+func ClearSolrDocument(uriaddress string, corename string) error {
 
 	uri := uriaddress + "/solr"
 	si, err := solr.NewSolrInterface(uri, corename)
@@ -33,26 +33,10 @@ func SolrClearDocument(uriaddress string, corename string) error {
 	return nil
 }
 
-func SolrAddDocument(si *solr.SolrInterface, materialid string, objecttype string, contents []string, vparams map[string]string) error {
-
-	uuidObj, _ := uuid.NewUUID()
-	id := uuidObj.String()
+func AddSolrRawDocument(si *solr.SolrInterface, sdocs []solr.Document) error {
 
 	var errChuck error
-	var sdocs []solr.Document
 
-	sdoc := solr.Document{
-		"id":         id,
-		"materialid": materialid,
-		"objecttype": objecttype,
-		"contents":   contents,
-	}
-
-	for k, v := range vparams {
-		sdoc.Set(k, v)
-	}
-
-	sdocs = append(sdocs, sdoc)
 	sparams := &url.Values{}
 	sparams.Add("commitWithin", "1000")
 	sparams.Add("overwrite", "true")
@@ -79,9 +63,34 @@ func SolrAddDocument(si *solr.SolrInterface, materialid string, objecttype strin
 		}
 	}
 	return errChuck
+
 }
 
-func SolrSchemaUpdate(uri string, corename string, schemafilename string) error {
+func AddSolrDocument(si *solr.SolrInterface, materialid string, objecttype string, contents []string, vparams map[string]string) error {
+
+	uuidObj, _ := uuid.NewUUID()
+	id := uuidObj.String()
+
+	var sdocs []solr.Document
+
+	sdoc := solr.Document{
+		"id":         id,
+		"materialid": materialid,
+		"objecttype": objecttype,
+		"contents":   contents,
+	}
+
+	for k, v := range vparams {
+		sdoc.Set(k, v)
+	}
+
+	sdocs = append(sdocs, sdoc)
+
+	return AddSolrRawDocument(si, sdocs)
+
+}
+
+func UpdateSolrSchema(uri string, corename string, schemafilename string) error {
 	bytes, err := ioutil.ReadFile(schemafilename)
 	if err != nil {
 		log.Err(err)
