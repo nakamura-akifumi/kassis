@@ -149,7 +149,7 @@
         "indexed":"true",
         "stored":"true",
         "required":"false",
-        "multiValued":"true"
+        "multiValued":"false"
     },
     "add-field" : {
         "name":"alternative_transcription",
@@ -157,7 +157,221 @@
         "indexed":"true",
         "stored":"true",
         "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"series_title",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"series_title_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"edition",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
         "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"creators",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"creators_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"creators_agent_identifier",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"creators_literal",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"series_creator_literal",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"publisher",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"publisher_agent_identifier",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"publisher_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"publication_place",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+
+    "add-field" : {
+        "name":"subjects",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"subjects_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"subjects_resource",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+
+    "add-field" : {
+        "name":"partInformation_title",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"partInformation_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"partInformation_description",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+    "add-field" : {
+        "name":"partInformation_creator",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+
+
+    "add-field" : {
+        "name":"descriptions",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    },
+
+    "add-field" : {
+        "name":"publication_date_literal",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"issued_w3cdtf",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"publication_date_from",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"publication_date_to",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+
+    "add-field" : {
+        "name":"language",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"originalLanguage",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
     }
 
 }

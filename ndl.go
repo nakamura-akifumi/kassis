@@ -179,7 +179,7 @@ type NDLRDF struct {
 				Creator string `xml:"creator"`
 			} `xml:"Description"`
 		} `xml:"partInformation"`
-		Alternative struct {
+		Alternative []struct {
 			Text        string `xml:",chardata"`
 			Description struct {
 				Text          string `xml:",chardata"`
@@ -278,33 +278,47 @@ func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
 	volume_transcription := br.Volume.Description.Transcription
 	volume_title := br.VolumeTitle.Description.Value
 	volume_title_transcription := br.VolumeTitle.Description.Transcription
-	alternative := br.Alternative.Description.Value
-	alternative_transcription := br.Alternative.Description.Transcription
+	alternative := ""
+	alternative_transcription := ""
+	if len(br.Alternative) > 0 {
+		alternative = br.Alternative[0].Description.Value
+		alternative_transcription = br.Alternative[0].Description.Transcription
+	}
 	//TODO: データ確認
 	//alternative_volume
 	//alternative_volume_title
-	//series_title := ""
-	//series_title_transcription := ""
+	series_title := ""
+	series_title_transcription := ""
 	if len(br.SeriesTitle) > 0 {
 		//TODO: 配列対応
-		//series_title = br.SeriesTitle[0].Description.Value
-		//series_title_transcription = br.SeriesTitle[0].Description.Transcription
+		series_title = br.SeriesTitle[0].Description.Value
+		series_title_transcription = br.SeriesTitle[0].Description.Transcription
 	}
-	/*
-		edition := br.Edition
-		creator := ""
-		creator_transcription := ""
-		creator_identifier := ""
-		creator_literal := ""
-		//TODO: 配列対応
-		if len(br.Creator) > 0 {
-			creator = br.Creator[0].Agent.Name
-			creator_transcription = br.Creator[0].Agent.Transcription
+
+	edition := br.Edition
+
+	creators := []string{}
+	creators_transcription := []string{}
+	creators_agent_identifier := []string{}
+	creators_literal := []string{}
+
+	if len(br.Creator) > 0 {
+		for _, c := range br.Creator {
+			creators = append(creators, c.Agent.Name)
+			creators_transcription = append(creators_transcription, c.Agent.Transcription)
 			//TODO: creatorにすべきかagentに収めるか
-			creator_identifier = br.Creator[0].Agent.About
-			creator_literal = br.Creator[0].Text
+			creators_agent_identifier = append(creators_agent_identifier, c.Agent.About)
+			creators_literal = append(creators_literal, c.Text)
 		}
-	*/
+	}
+
+	publisher := ""
+	publisher_transcription := ""
+	if len(br.Publisher) > 0 {
+		publisher = br.Publisher[0].Agent.Name
+		publisher_transcription = br.Publisher[0].Agent.Transcription
+	}
+
 	//TODO: データ確認
 	//creator_alternative_literal :=
 
@@ -338,6 +352,15 @@ func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
 		"volume_title_transcription": volume_title_transcription,
 		"alternative":                alternative,
 		"alternative_transcription":  alternative_transcription,
+		"series_title":               series_title,
+		"series_title_transcription": series_title_transcription,
+		"edition":                    edition,
+		"creators":                   creators,
+		"creators_transcription":     creators_transcription,
+		"creators_agent_identifier":  creators_agent_identifier,
+		"creators_literal":           creators_literal,
+		"publisher":                  publisher,
+		"publisher_transcription":    publisher_transcription,
 	}
 
 	var sdocs []solr.Document

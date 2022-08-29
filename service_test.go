@@ -77,20 +77,60 @@ func TestImportFromISBNFileS2(t *testing.T) {
 		t.Fatal("failed test")
 	}
 
-	assert.Equal(t, res.Results.Docs[0].Get("materialid").(string), "http://iss.ndl.go.jp/books/R100000002-I027713635-00")
+	//TODO: struct がほしい
 	assert.Equal(t, res.Results.Docs[0].Get("mediatype").(string), "Book")
 	assert.Equal(t, res.Results.Docs[0].Get("objecttype").(string), "MENIFESTAION")
+	assert.Equal(t, res.Results.Docs[0].Get("materialid").(string), "http://iss.ndl.go.jp/books/R100000002-I027713635-00")
+	itfs := res.Results.Docs[0].Get("identifiers").([]interface{})
+	identifers, _ := InterfaceToStringArray(itfs)
+	assert.Contains(t, identifers, "JPNO@22822497")
+	assert.Contains(t, identifers, "TOHANMARCNO@33528665")
+	assert.Contains(t, identifers, "ISBN@978-4-585-20503-6")
+
 	assert.Equal(t, res.Results.Docs[0].Get("title").(string), "わかる!図書館情報学シリーズ")
 	assert.Equal(t, res.Results.Docs[0].Get("title_transcription").(string), "ワカル トショカン ジョウホウガク シリーズ")
 	assert.Equal(t, res.Results.Docs[0].Get("volume").(string), "第3巻")
 	assert.Equal(t, res.Results.Docs[0].Get("volume_transcription").(string), "3")
 
-	itfs := res.Results.Docs[0].Get("identifiers").([]interface{})
-	identifers, _ := InterfaceToStringArray(itfs)
+	assert.Equal(t, res.Results.Docs[0].Get("volume_title").(string), "第3巻")
+	assert.Equal(t, res.Results.Docs[0].Get("volume_title_transcription").(string), "3")
 
-	assert.Contains(t, identifers, "JPNO@22822497")
-	assert.Contains(t, identifers, "TOHANMARCNO@33528665")
-	assert.Contains(t, identifers, "ISBN@978-4-585-20503-6")
+	assert.Equal(t, res.Results.Docs[0].Get("alternative").(string), "第3巻")
+	assert.Equal(t, res.Results.Docs[0].Get("alternative_transcription").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("series_title").(string), "第3巻")
+	assert.Equal(t, res.Results.Docs[0].Get("series_title_transcription").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("edition").(string), "第3巻")
+
+	assert.Equal(t, res.Results.Docs[0].Get("creators").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("creators_transcription").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("creators_agent_identifier").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("creators_literal").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("series_creator_literal").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("publisher").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("publisher_agent_identifier").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("publisher_transcription").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("publication_place").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("subjects").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("subjects_transcription").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("subjects_resource").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("partInformation_title").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("partInformation_transcription").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("partInformation_description").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("partInformation_creator").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("descriptions").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("publication_date_literal").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("issued_w3cdtf").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("publication_date_from").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("publication_date_to").(string), "3")
+
+	assert.Equal(t, res.Results.Docs[0].Get("language").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("originalLanguage").(string), "3")
 
 }
 
