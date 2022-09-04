@@ -1,6 +1,7 @@
 package kassiscore
 
 import (
+	"fmt"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -59,6 +60,7 @@ func TestImportFromISBNFileS2(t *testing.T) {
 
 	err := ClearSolrDocument(valid_solrserveruri, valid_solrcorename)
 	if err != nil {
+		fmt.Println(err)
 		t.Fatal("failed test")
 	}
 
@@ -92,8 +94,8 @@ func TestImportFromISBNFileS2(t *testing.T) {
 	assert.Equal(t, res.Results.Docs[0].Get("volume").(string), "第3巻")
 	assert.Equal(t, res.Results.Docs[0].Get("volume_transcription").(string), "3")
 
-	assert.Equal(t, res.Results.Docs[0].Get("volume_title").(string), "第3巻")
-	assert.Equal(t, res.Results.Docs[0].Get("volume_title_transcription").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("volume_title").(string), "")
+	assert.Equal(t, res.Results.Docs[0].Get("volume_title_transcription").(string), "")
 
 	assert.Equal(t, res.Results.Docs[0].Get("alternative").(string), "第3巻")
 	assert.Equal(t, res.Results.Docs[0].Get("alternative_transcription").(string), "3")
@@ -129,8 +131,8 @@ func TestImportFromISBNFileS2(t *testing.T) {
 	assert.Equal(t, res.Results.Docs[0].Get("publication_date_from").(string), "3")
 	assert.Equal(t, res.Results.Docs[0].Get("publication_date_to").(string), "3")
 
-	assert.Equal(t, res.Results.Docs[0].Get("language").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("originalLanguage").(string), "3")
+	assert.Equal(t, res.Results.Docs[0].Get("language").(string), "ja")
+	assert.Equal(t, res.Results.Docs[0].Get("originalLanguage").(string), "")
 
 }
 
