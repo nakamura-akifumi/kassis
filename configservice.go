@@ -441,7 +441,7 @@ func SetupSolr(corename string) error {
 	schemafilename, _ := os.Getwd()
 	schemafilename = filepath.Join(schemafilename, "tools", "kassis-solr-schema.json")
 
-	err = SolrSchemaUpdate(cfg.Solr.Serveruri, corename, schemafilename)
+	err = UpdateSolrSchema(cfg.Solr.Serveruri, corename, schemafilename)
 	if err != nil {
 		log.Error().Msg("fail update schema")
 		log.Err(err).Msg("error reason:")
@@ -625,10 +625,11 @@ func TikaPing(tikauri string) (string, error) {
 func LoadConfig() *KENVCONF {
 	fname, err := getConfigPath()
 	if err != nil {
-		log.Err(nil).Msg("no fname")
+		log.Info().Msg("can not find configuration file path")
+		return nil
 	}
 
-	log.Info().Str("fname", fname)
+	log.Info().Str("configuration file name", fname)
 
 	cfg, _ := loadConfig(fname)
 	return cfg

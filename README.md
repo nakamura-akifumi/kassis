@@ -108,8 +108,8 @@ go run cmd/webserver/main.go
 ### solrのデータ再構築手順
 
 ```shell
-.\bin\solr delete -c kassiscore
-.\bin\configurator -setup-solr
+.\tools\app\solr-8.11.2\bin\solr delete -c kassiscore_test
+go run cmd/configurator/main.go setupsolr
 ```
 
 ### ディレクトリ構成図

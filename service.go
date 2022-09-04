@@ -85,7 +85,6 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult,
 		return nil, err
 	}
 
-	//opts := &solr.ReadOptions{Rows: 20, Debug: solr.DebugTypeQuery}
 	q := solr.NewQuery()
 
 	// cut whitespace and zenkaku space
@@ -96,13 +95,15 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult,
 		q.Q("contents:" + qs)
 	}
 
-	q.Start(0)
-	q.Rows(20)
+	//q.Start(0)
+	//q.Rows(20)
 
-	q.SetParam("hl", "true")
-	q.SetParam("hl.fl", "contents")
-	q.SetParam("hl.simple.pre", "<em>")
-	q.SetParam("hl.simple.post", "</em>")
+	//q.SetParam("hl", "true")
+	//q.SetParam("hl.fl", "contents")
+	//q.SetParam("hl.simple.pre", "<em>")
+	//q.SetParam("hl.simple.post", "</em>")
+
+	log.Debug().Msg(q.String())
 
 	s := si.Search(q)
 	res, err := s.Result(nil)
@@ -146,7 +147,7 @@ func GenerateTextIndex(si *solr.SolrInterface, filename string, mediatype string
 		"title":      basename,
 	}
 
-	err := SolrAddDocument(si, mid, "FILE", cells, vparams)
+	err := AddSolrDocument(si, mid, "FILE", cells, vparams)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -204,7 +205,7 @@ func GenerateWordxIndex(si *solr.SolrInterface, filename string, mediatype strin
 		"title":      title,
 	}
 
-	err := SolrAddDocument(si, mid, "FILE", cells, vparams)
+	err := AddSolrDocument(si, mid, "FILE", cells, vparams)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -238,7 +239,7 @@ func GeneratePdfIndex(si *solr.SolrInterface, filename string, mediatype string,
 			"title":      title,
 		}
 
-		err := SolrAddDocument(si, mid, "FILE", []string{text}, vparams)
+		err := AddSolrDocument(si, mid, "FILE", []string{text}, vparams)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
@@ -296,7 +297,7 @@ func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype strin
 						"title":      title,
 					}
 
-					err := SolrAddDocument(si, mid, "FILE", cells, vparams)
+					err := AddSolrDocument(si, mid, "FILE", cells, vparams)
 					if err != nil {
 						log.Fatal().Err(err)
 						//return err
@@ -311,17 +312,17 @@ func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype strin
 	return "ok"
 }
 
-func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename string) error {
+func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename string) (int, error) {
 	uri := solrserveruri + "/solr"
 	si, err := solr.NewSolrInterface(uri, solrcorename)
 	if err != nil {
 		log.Fatal().Err(err)
-		return err
+		return 0, err
 	}
 	status, qtime, err := si.Ping()
 	if err != nil {
 		fmt.Printf("Solr core ping:ng (%s %s)\n", solrserveruri, solrcorename)
-		return err
+		return 0, err
 	}
 	log.Debug().Msgf("Solr Ping status:%s qtime:%d\n", status, qtime)
 
@@ -331,22 +332,23 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 
 		fi, err := os.Open(filename)
 		if err != nil {
-			return errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
+			return 0, errors.New(fmt.Sprintf("os: Unable to open file [%s]", filename))
 		}
 
 		data, err := ioutil.ReadAll(fi)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		dcndloaipmh := DCNDLOAIPMH{}
 		err = xml.Unmarshal(data, &dcndloaipmh)
 		if err != nil {
 			fmt.Printf("error: %v", err)
 			fi.Close()
-			return err
+			return 0, err
 		}
 
 		for _, r := range dcndloaipmh.ListRecords.Record {
+			//TODO: まとめて
 			err := AddSolrDocumentNDLRDF(si, &r.Metadata.RDF)
 			if err != nil {
 				log.Fatal().Err(err)
@@ -356,7 +358,7 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 		fi.Close()
 	}
 
-	return nil
+	return successCount, nil
 }
 
 func ImportFromISBNFile(files []string, solrserveruri string, solrcorename string) (int, error) {
@@ -394,8 +396,6 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 			}
 
 			isbn := string(line)
-			fmt.Println(isbn)
-
 			isbn = strings.TrimSpace(isbn)
 			if isbn == "" {
 				continue
@@ -405,14 +405,19 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 				fmt.Println(err)
 			}
 
-			fmt.Printf("isbn:%s \n", isbn)
+			//fmt.Printf("isbn:%s \n", isbn)
 			if rdf.BibAdminResource.About != "" {
-				//TODO: store to solr
-				fmt.Println(rdf.BibResource.Title.Description.Value)
+				//TODO: まとめて保存
+				AddSolrDocumentNDLRDF(si, rdf)
+				successCount++
 			}
 		}
 		fi.Close()
 	}
+
+	si.Commit()
+	fmt.Println("add success:", successCount)
+
 	return successCount, nil
 }
 
@@ -462,11 +467,11 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 	}
 	q := u.Query()
 	q.Add("operation", "searchRetrieve")
-	//q.Add("version", "1.2")
+	q.Add("version", "1.2")
 	q.Add("recordSchema", "dcndl")
 	q.Add("recordPacking", "xml")
 	q.Add("onlyBib", "true")
-	q.Add("maximumRecords", "2")
+	q.Add("maximumRecords", "10")
 	//q.Add("inprocess", "false")
 	q.Add("query", fmt.Sprintf("isbn=%s", isbn))
 	q.Add("sortBy", "modified_date.descending")

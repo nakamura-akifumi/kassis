@@ -14,6 +14,13 @@ func main() {
 	fmt.Printf("kassis configurator. version %s (Revison:%s)\n", kassiscore.VERSION, kassiscore.REVISION)
 	fmt.Println("Main function started")
 
+	cfg := kassiscore.LoadConfig()
+	defautcorename := "kassiscore"
+	if cfg != nil {
+		defautcorename = cfg.Solr.Corename
+	}
+
+	corename := flag.String("c", defautcorename, "solr corename (with setupsolr or deleteall)")
 	flag.CommandLine.Usage = func() {
 		o := flag.CommandLine.Output()
 		_, _ = fmt.Fprint(o, "\nUsage: configurator [ OPTIONS ] [COMMAND | help]\n")
@@ -21,16 +28,17 @@ func main() {
 		_, _ = fmt.Fprint(o, "      OPTIONS:\n")
 		flag.PrintDefaults()
 	}
-
-	corename := flag.String("corename", "", "solr corename (with setupsolr)")
 	flag.Parse()
 
+	//fmt.Println(len(flag.Args()), flag.NArg())
+	//fmt.Println("corename:", *corename)
+
 	actioname := "check"
-	if len(flag.Args()) == 0 {
+	if flag.NArg() == 0 {
 		kassiscore.CheckConfigAndConnections("error-only")
 		return
-	} else if len(flag.Args()) == 1 {
-		actions := []string{"check", "makeconfigset", "setupsolr", "startsolr", "stopsolr", "starttika", "stoptika", "deleteall", "downloadapp"}
+	} else if flag.NArg() == 1 {
+		actions := []string{"check", "configset", "setupsolr", "startsolr", "stopsolr", "starttika", "stoptika", "deleteall", "downloadapp"}
 		if kassiscore.ArrayContains(actions, strings.ToLower(flag.Arg(0))) == false {
 			fmt.Println("error: action is invalid")
 			flag.CommandLine.Usage()
@@ -46,9 +54,11 @@ func main() {
 	fmt.Println("corename:", *corename)
 
 	switch actioname {
+	case "help":
+		flag.CommandLine.Usage()
 	case "check":
 		kassiscore.CheckConfigAndConnections("full")
-	case "makeconfigset":
+	case "configset":
 		kassiscore.GenerateDefaultConfigSet()
 	case "setupsolr":
 		err := kassiscore.SetupSolr(*corename)
@@ -56,26 +66,25 @@ func main() {
 			fmt.Println(err)
 		}
 	case "startsolr":
-		cfg := kassiscore.LoadConfig()
 		kassiscore.StartSolr(cfg)
 	case "stopsolr":
-		cfg := kassiscore.LoadConfig()
 		kassiscore.StopSolr(cfg)
 	case "starttika":
-		cfg := kassiscore.LoadConfig()
 		err := kassiscore.StartTika(cfg)
 		if err != nil {
 			fmt.Println(err)
 		}
 	case "stoptika":
-		cfg := kassiscore.LoadConfig()
 		err := kassiscore.StopTika(cfg)
 		if err != nil {
 			fmt.Println(err)
 		}
 	case "deleteall":
-		cfg := kassiscore.LoadConfig()
-		fmt.Println("clear documents?(Y/N)")
+		if cfg == nil {
+			fmt.Println("can not load configuration file.")
+			return
+		}
+		fmt.Printf("[%s] delete documents? (Y/N)\n", *corename)
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			if scanner.Text() == "Y" {
@@ -85,10 +94,12 @@ func main() {
 				return
 			}
 		}
-		err := kassiscore.SolrClearDocument(cfg.Solr.Serveruri, cfg.Solr.Corename)
+		err := kassiscore.ClearSolrDocument(cfg.Solr.Serveruri, *corename)
 		if err != nil {
 			fmt.Println(err)
+			return
 		}
+		fmt.Println("done")
 	case "downloadapp":
 		kassiscore.DownloadApps()
 	}
