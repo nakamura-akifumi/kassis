@@ -93,7 +93,7 @@ func main() {
 			os.Exit(11)
 		}
 	case "dcndlrdf":
-		err = kassiscore.ImportFromFileNCNDLRDF(files, cfg.Solr.Serveruri, cfg.Solr.Corename)
+		_, err = kassiscore.ImportFromFileNCNDLRDF(files, cfg.Solr.Serveruri, cfg.Solr.Corename)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(12)

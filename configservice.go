@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/go-tika/tika"
+	"github.com/nakamura-akifumi/kassis/internal/solr"
 	"github.com/rs/zerolog/log"
-	"github.com/vanng822/go-solr/solr"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -243,7 +243,7 @@ func StartSolr(cfg *KENVCONF) {
 	time.Sleep(time.Second * time.Duration(waittimesec))
 	fmt.Println("ProcessID:", cmd.Process.Pid)
 
-	vs, err := SolrServerPing(cfg.Solr.Serveruri)
+	vs, _, err := solr.AdminPing(cfg.Solr.Serveruri)
 	if err != nil {
 		fmt.Printf("error: %s\n", err.Error())
 	} else {
@@ -399,7 +399,7 @@ func SetupSolr(corename string) error {
 
 	fmt.Printf("connect to solr\n")
 	// Initialize a new solr Core Admin API
-	ca, err := solr.NewCoreAdmin(cfg.Solr.Serveruri + "/solr/")
+	ca, err := solr.NewConnectionAndAdminClient(cfg.Solr.Serveruri, http.DefaultClient)
 	if err != nil {
 		log.Err(err)
 		return err
@@ -566,13 +566,13 @@ func CheckConfigAndConnections(displaymode string) error {
 
 	// step5 : check solr
 	uri := cfg.Solr.Serveruri + "/solr"
-	si, err := solr.NewSolrInterface(uri, cfg.Solr.Corename)
+	sc, err := solr.NewConnectionAndSingleClient(uri, cfg.Solr.Corename, http.DefaultClient)
 	if err != nil {
 		last_error = fmt.Errorf("no solr coneection")
 		dism(fmt.Sprintf("Solr connection:"+NGLBL+" error (1) Path:%s %s\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)
 	} else {
 		//admin core
-		vs, err := SolrServerPing(cfg.Solr.Serveruri)
+		vs, _, err := solr.AdminPing(cfg.Solr.Serveruri)
 		if err != nil {
 			last_error = fmt.Errorf("no solr admincore")
 			dism(fmt.Sprintf("Solr admincore:"+NGLBL+" error: %s\n", err.Error()), MSGERROR)
@@ -580,7 +580,8 @@ func CheckConfigAndConnections(displaymode string) error {
 			dism(fmt.Sprintf("Solr admincore:"+OKLBL+" solr-spec-version:%s\n", vs), MSGINFO)
 
 			//core check
-			_, qtime, err := si.Ping()
+			ctx := context.Background()
+			_, qtime, err := sc.Ping(ctx)
 			if err != nil {
 				last_error = fmt.Errorf("solr ping error")
 				dism(fmt.Sprintf("Solr core ping:"+NGLBL+" (%s %s)\n", cfg.Solr.Serveruri, cfg.Solr.Corename), MSGERROR)

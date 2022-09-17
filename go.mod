@@ -9,7 +9,7 @@ require (
 	github.com/labstack/echo/v4 v4.7.2
 	github.com/rs/zerolog v1.26.1
 	github.com/stretchr/testify v1.7.1
-	github.com/vanng822/go-solr v0.10.0
+	github.com/tcnksm/go-httpstat v0.2.0
 )
 
 require (
@@ -21,7 +21,6 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v1.14.15 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/tcnksm/go-httpstat v0.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20211215165025-cf75a172585e // indirect
