@@ -399,6 +399,7 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 
 		}
 		fi.Close()
+		successCount++
 	}
 
 	return successCount, nil

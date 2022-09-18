@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 )
 
@@ -44,16 +46,21 @@ func (c *Connection) formatBasePath() string {
 	return formatBasePath(c.Uri, c.Corename)
 }
 
-func (c *Connection) request(ctx context.Context, method, url string, body []byte) (*Response, error) {
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+func (c *Connection) request(ctx context.Context, method, uri string, body []byte) (*Response, error) {
+
+	//log.Debug().Msgf("uri:%s", uri)
+
+	req, err := http.NewRequest(method, uri, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis internal %s", runtime.GOOS))
 
 	res, err := c.httpClient.Do(req.WithContext(ctx))
 	if err != nil {
+		log.Err(err).Msg("httpclient request failed.")
 		return nil, err
 	}
 
@@ -62,6 +69,7 @@ func (c *Connection) request(ctx context.Context, method, url string, body []byt
 
 	err = json.NewDecoder(res.Body).Decode(&r)
 	if err != nil {
+		log.Err(err).Msg("response decoder convert error.")
 		return nil, err
 	}
 

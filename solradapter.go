@@ -2,14 +2,10 @@ package kassiscore
 
 import (
 	"context"
-	"fmt"
 	"github.com/google/uuid"
 	"github.com/nakamura-akifumi/kassis/internal/solr"
 	"github.com/rs/zerolog/log"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"strings"
 )
 
 type SolrMaterial struct {
@@ -92,48 +88,5 @@ func AddSolrDocument(sc *solr.SingleClient, m SolrMaterial) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func UpdateSolrSchema(uri string, corename string, schemafilename string) error {
-	bytes, err := ioutil.ReadFile(schemafilename)
-	if err != nil {
-		log.Err(err)
-		return err
-	}
-
-	uri = uri + "/solr/" + corename + "/schema"
-	req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(string(bytes)))
-	if err != nil {
-		log.Err(err)
-		return err
-	}
-	req.Header.Set("Content-Type", "Content-type:application/json")
-
-	fmt.Println("Post schema file")
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Err(err)
-		return err
-	}
-	// deferでクローズ処理
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
-		}
-	}(resp.Body)
-	// Bodyの内容を読み込む
-	body, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != 200 {
-		log.Error().Msgf("error: response code is %d", resp.StatusCode)
-		fmt.Println("Error:")
-		fmt.Print(string(body))
-		return fmt.Errorf("error: response code is %d", resp.StatusCode)
-	}
-
-	fmt.Println("success")
 	return nil
 }

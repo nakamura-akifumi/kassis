@@ -10,6 +10,9 @@ func formatBasePath(uri, corename string) string {
 	if strings.HasSuffix(uri, "/solr") {
 		return fmt.Sprintf("%s/%s", uri, corename)
 	}
+	if corename == "" {
+		return fmt.Sprintf("%s/solr", uri)
+	}
 	return fmt.Sprintf("%s/solr/%s", uri, corename)
 }
 
