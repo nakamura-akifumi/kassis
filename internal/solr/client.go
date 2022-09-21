@@ -46,6 +46,37 @@ func (c *Connection) formatBasePath() string {
 	return formatBasePath(c.Uri, c.Corename)
 }
 
+func (c *Connection) adminRequest(ctx context.Context, method, uri string, body []byte) (*AdminResponse, error) {
+	req, err := http.NewRequest(method, uri, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Set("User-Agent", fmt.Sprintf("kassis internal %s", runtime.GOOS))
+
+	res, err := c.httpClient.Do(req.WithContext(ctx))
+	if err != nil {
+		log.Err(err).Msg("httpclient request failed.")
+		return nil, err
+	}
+
+	var r AdminResponse
+	defer res.Body.Close()
+
+	err = json.NewDecoder(res.Body).Decode(&r)
+	if err != nil {
+		log.Err(err).Msg("response decoder convert error.")
+		return nil, err
+	}
+
+	if r.Error != nil {
+		return &r, r.Error
+	}
+
+	return &r, nil
+}
+
 func (c *Connection) request(ctx context.Context, method, uri string, body []byte) (*Response, error) {
 
 	//log.Debug().Msgf("uri:%s", uri)
@@ -139,6 +170,17 @@ func (c *SingleClient) Create(ctx context.Context, doc interface{}, opts *WriteO
 	uri := c.buildURL("/update/json/docs", opts.buildQueryOptions().Encode())
 
 	bodyBytes, err := interfaceToBytes(doc)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.conn.request(ctx, http.MethodPost, uri, bodyBytes)
+}
+
+func (c *SingleClient) BatchCreate(ctx context.Context, docs interface{}, opts *WriteOptions) (*Response, error) {
+	uri := c.buildURL("/update/json/docs", opts.buildQueryOptions().Encode())
+
+	bodyBytes, err := interfaceToBytes(docs)
 	if err != nil {
 		return nil, err
 	}
