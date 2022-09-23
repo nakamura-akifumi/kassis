@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/google/go-tika/tika"
+	"github.com/nakamura-akifumi/kassis/internal/solr"
 	"github.com/rs/zerolog/log"
 	"github.com/tcnksm/go-httpstat"
-	"github.com/vanng822/go-solr/solr"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -51,12 +52,15 @@ type KWRIF struct {
 	ResponseMessage string
 	KQ              KWQIF
 	Materials       []Material
+	SolrMaterials   []SolrMaterial
 }
 
-const ContenttypeExcel string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-const ContenttypePdf string = "application/pdf"
-const ContenttypeText string = "text/plain"
-const ContenttypeWord string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+const (
+	ContenttypeExcel string = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	ContenttypePdf   string = "application/pdf"
+	ContenttypeText  string = "text/plain"
+	ContenttypeWord  string = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
 
 func ExtnameToMediaType(extname string) string {
 	ct := "application/octet-stream"
@@ -75,9 +79,11 @@ func ExtnameToMediaType(extname string) string {
 
 // SolrQuery は、Solrに検索を投げます
 // TODO: 引数要改良 、solrに接続する箇所も改良。毎回接続するのは問題。
-func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult, error) {
-	uri := uriaddress + "/solr"
-	si, err := solr.NewSolrInterface(uri, corename)
+func SolrQuery(uriaddress string, corename string, qs string) ([]*SolrMaterial, error) {
+
+	ctx := context.Background()
+
+	sc, err := solr.NewConnectionAndSingleClient(uriaddress, corename, http.DefaultClient)
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -96,30 +102,47 @@ func SolrQuery(uriaddress string, corename string, qs string) (*solr.SolrResult,
 	}
 
 	//q.Start(0)
-	//q.Rows(20)
+	q.Rows(20)
 
-	//q.SetParam("hl", "true")
-	//q.SetParam("hl.fl", "contents")
-	//q.SetParam("hl.simple.pre", "<em>")
-	//q.SetParam("hl.simple.post", "</em>")
+	q.SetParam("hl", "true")
+	q.SetParam("hl.fl", "contents")
+	q.SetParam("hl.simple.pre", "<em>")
+	q.SetParam("hl.simple.post", "</em>")
 
 	log.Debug().Msg(q.String())
 
-	s := si.Search(q)
-	res, err := s.Result(nil)
+	r, err := sc.Search(ctx, q)
 	if err != nil {
 		log.Err(err).Msgf("fail query: q=%s", q)
 		return nil, err
 	}
 
-	log.Info().Msgf("NumFound/FetchDocs/Highlighting:%d/%d/%d", res.Results.NumFound, len(res.Results.Docs), len(res.Highlighting))
+	log.Info().Msgf("NumFound/FetchDocs/Highlighting:%d/%d/%d", r.Data.NumFound, len(r.Data.Docs), -1)
 
-	return res, nil
+	var results []*SolrMaterial
+
+	fBytes, err := r.Data.Docs.ToBytes()
+	if err != nil {
+		log.Fatal().Err(err)
+		return nil, err
+	}
+
+	err = json.Unmarshal(fBytes, &results)
+	if err != nil {
+		log.Fatal().Err(err)
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		fmt.Println("no records (query)")
+	}
+
+	return results, nil
 }
 
 // GenerateTextIndex は、テキスト形式のファイルの索引を作成します
 // 1ファイルで Solr の1ドキュメントとする
-func GenerateTextIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
+func GenerateTextIndex(sc *solr.SingleClient, filename string, mediatype string, doc *goquery.Document) string {
 
 	var cells []string
 
@@ -140,14 +163,19 @@ func GenerateTextIndex(si *solr.SolrInterface, filename string, mediatype string
 
 	mid := fmt.Sprintf("%s%d", filename, 0)
 
-	vparams := map[string]string{
-		"mediatype":  mediatype,
-		"foldername": foldername,
-		"filename":   basename,
-		"title":      basename,
+	m := SolrMaterial{
+		Contents:   cells,
+		Materialid: mid,
+		Mediatype:  mediatype,
+		Objecttype: "FILE",
+		Title:      basename,
+		Foldername: foldername,
+		Filename:   basename,
+		Sheetname:  "",
 	}
 
-	err := AddSolrDocument(si, mid, "FILE", cells, vparams)
+	err := AddSolrDocument(sc, m)
+	//err := AddSolrDocument(sc, mid, "FILE", cells, vparams)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -160,7 +188,7 @@ func GenerateTextIndex(si *solr.SolrInterface, filename string, mediatype string
 
 // GenerateWordxIndex は MS WORD(.docx)形式のファイルの索引を作る
 // 1ファイルで Solr の1ドキュメントとする
-func GenerateWordxIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
+func GenerateWordxIndex(sc *solr.SingleClient, filename string, mediatype string, doc *goquery.Document) string {
 
 	//fmt.Println("docx")
 
@@ -196,16 +224,19 @@ func GenerateWordxIndex(si *solr.SolrInterface, filename string, mediatype strin
 	//fmt.Printf("title:%s\n", title)
 
 	mid := fmt.Sprintf("%s%d", filename, 0)
-	//wr := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
 
-	vparams := map[string]string{
-		"mediatype":  mediatype,
-		"foldername": foldername,
-		"filename":   basename,
-		"title":      title,
+	m := SolrMaterial{
+		Contents:   cells,
+		Materialid: mid,
+		Mediatype:  mediatype,
+		Objecttype: "FILE",
+		Title:      title,
+		Foldername: foldername,
+		Filename:   basename,
+		Sheetname:  "",
 	}
 
-	err := AddSolrDocument(si, mid, "FILE", cells, vparams)
+	err := AddSolrDocument(sc, m)
 	if err != nil {
 		log.Fatal().Err(err)
 	}
@@ -216,7 +247,7 @@ func GenerateWordxIndex(si *solr.SolrInterface, filename string, mediatype strin
 
 // GeneratePdfIndex は、PDF(.pdf)形式のファイルの索引を作る
 // PDFの1ページで Solr の1ドキュメントとする
-func GeneratePdfIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
+func GeneratePdfIndex(sc *solr.SingleClient, filename string, mediatype string, doc *goquery.Document) string {
 
 	basename := filepath.Base(filename)
 	foldername := filepath.Dir(filename)
@@ -231,15 +262,19 @@ func GeneratePdfIndex(si *solr.SolrInterface, filename string, mediatype string,
 		//text = rep_space.ReplaceAllString(text, "")
 
 		mid := fmt.Sprintf("%s%d", filename, rindex)
-		//doc := Material{ID: id, ObjectType: "FILE", Mediatype: mediatype, Foldername: foldername, Filename: basename, Title: title, Contents: cells}
-		vparams := map[string]string{
-			"mediatype":  mediatype,
-			"foldername": foldername,
-			"filename":   basename,
-			"title":      title,
+
+		m := SolrMaterial{
+			Contents:   []string{text},
+			Materialid: mid,
+			Mediatype:  mediatype,
+			Objecttype: "FILE",
+			Title:      title,
+			Foldername: foldername,
+			Filename:   basename,
+			Sheetname:  "",
 		}
 
-		err := AddSolrDocument(si, mid, "FILE", []string{text}, vparams)
+		err := AddSolrDocument(sc, m)
 		if err != nil {
 			log.Fatal().Err(err)
 		}
@@ -251,7 +286,7 @@ func GeneratePdfIndex(si *solr.SolrInterface, filename string, mediatype string,
 
 // GenerateExcelIndex は Excel(.xlsx)形式のファイルの索引を作る
 // Excelの1行で Solr の1ドキュメントとする
-func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype string, doc *goquery.Document) string {
+func GenerateExcelIndex(sc *solr.SingleClient, filename string, mediatype string, doc *goquery.Document) string {
 	//TODO:対象外とするシート名の受け渡しは要改良
 	excludesheetnames := []string{"注意書き"}
 
@@ -289,15 +324,18 @@ func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype strin
 				if len(cells) > 0 {
 					mid := fmt.Sprintf("%s%s%d", filename, sheetname, rindex)
 
-					vparams := map[string]string{
-						"mediatype":  mediatype,
-						"foldername": foldername,
-						"filename":   basename,
-						"sheetname":  sheetname,
-						"title":      title,
+					m := SolrMaterial{
+						Materialid: mid,
+						Mediatype:  mediatype,
+						Title:      title,
+						Foldername: foldername,
+						Filename:   basename,
+						Sheetname:  sheetname,
+						Objecttype: "FILE",
+						Contents:   cells,
 					}
 
-					err := AddSolrDocument(si, mid, "FILE", cells, vparams)
+					err := AddSolrDocument(sc, m)
 					if err != nil {
 						log.Fatal().Err(err)
 						//return err
@@ -313,13 +351,18 @@ func GenerateExcelIndex(si *solr.SolrInterface, filename string, mediatype strin
 }
 
 func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename string) (int, error) {
-	uri := solrserveruri + "/solr"
-	si, err := solr.NewSolrInterface(uri, solrcorename)
+
+	ctx := context.Background()
+
+	sc, err := solr.NewConnectionAndSingleClient(solrserveruri, solrcorename, http.DefaultClient)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().
+			Err(err).
+			Msgf("Connection error.")
 		return 0, err
 	}
-	status, qtime, err := si.Ping()
+
+	status, qtime, err := sc.Ping(ctx)
 	if err != nil {
 		fmt.Printf("Solr core ping:ng (%s %s)\n", solrserveruri, solrcorename)
 		return 0, err
@@ -349,27 +392,31 @@ func ImportFromFileNCNDLRDF(files []string, solrserveruri string, solrcorename s
 
 		for _, r := range dcndloaipmh.ListRecords.Record {
 			//TODO: まとめて
-			err := AddSolrDocumentNDLRDF(si, &r.Metadata.RDF)
+			err := AddSolrDocumentNDLRDF(sc, &r.Metadata.RDF)
 			if err != nil {
 				log.Fatal().Err(err)
 			}
 
 		}
 		fi.Close()
+		successCount++
 	}
 
 	return successCount, nil
 }
 
 func ImportFromISBNFile(files []string, solrserveruri string, solrcorename string) (int, error) {
-	uri := solrserveruri + "/solr"
-	si, err := solr.NewSolrInterface(uri, solrcorename)
+	ctx := context.Background()
+
+	sc, err := solr.NewConnectionAndSingleClient(solrserveruri, solrcorename, http.DefaultClient)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().
+			Err(err).
+			Msgf("Connection error.")
 		return 0, err
 	}
 
-	status, qtime, err := si.Ping()
+	status, qtime, err := sc.Ping(ctx)
 	if err != nil {
 		fmt.Printf("Solr core ping:"+NGLBL+" (%s %s)\n", solrserveruri, solrcorename)
 		return 0, err
@@ -403,19 +450,24 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 			rdf, err := FetchMaterialFromNDLByISBN(isbn)
 			if err != nil {
 				fmt.Println(err)
+				break
 			}
 
 			//fmt.Printf("isbn:%s \n", isbn)
 			if rdf.BibAdminResource.About != "" {
 				//TODO: まとめて保存
-				AddSolrDocumentNDLRDF(si, rdf)
-				successCount++
+				err = AddSolrDocumentNDLRDF(sc, rdf)
+				if err != nil {
+					fmt.Println("create document failed.")
+				} else {
+					successCount++
+				}
 			}
 		}
 		fi.Close()
 	}
 
-	si.Commit()
+	sc.Commit(ctx)
 	fmt.Println("add success:", successCount)
 
 	return successCount, nil
@@ -424,6 +476,10 @@ func ImportFromISBNFile(files []string, solrserveruri string, solrcorename strin
 func FetchMaterialFromNDLByISBN(isbn string) (*NDLRDF, error) {
 	var r NDLRDF
 	res, err := searchRetrieveResponseFromNDLByISBN(isbn)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
 	numOfRecords, _ := strconv.Atoi(res.NumberOfRecords)
 	if numOfRecords == 0 {
 		err = fmt.Errorf("no record by isbn (%s)", isbn)
@@ -437,10 +493,6 @@ func FetchMaterialFromNDLByISBN(isbn string) (*NDLRDF, error) {
 		if r.BibAdminResource.CatalogingStatus == "" {
 			r = res.Records.Record[0].RecordData.RDF
 		}
-
-		//fmt.Println(r.BibAdminResource.About)
-		//fmt.Println(r.BibResource.Title.Description.Value)
-		//fmt.Println(r.BibResource.Title.Description.Transcription)
 
 	}
 
@@ -490,7 +542,8 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		log.Err(err).Msgf(" url is invalid or server not connected.")
+		return &data, err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -503,9 +556,6 @@ func searchRetrieveResponseFromNDLByISBN(isbn string) (*SearchRetrieveResponse, 
 		resp.Body.Close()
 		return &data, err
 	}
-
-	//fmt.Println(len(string(body)))
-	//fmt.Println(string(body))
 
 	// for debug
 	writefilename, _ := os.Getwd()
@@ -643,14 +693,16 @@ func searchRetrieveResponseFromNDL_OAIPMH(fromdate string, untildate string, tok
 }
 
 func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, solrcorename string) error {
-
-	uri := solrserveruri + "/solr"
-	si, err := solr.NewSolrInterface(uri, solrcorename)
+	ctx := context.Background()
+	sc, err := solr.NewConnectionAndSingleClient(solrserveruri, solrcorename, http.DefaultClient)
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().
+			Err(err).
+			Msgf("Connection error.")
 		return err
 	}
-	status, qtime, err := si.Ping()
+
+	status, qtime, err := sc.Ping(ctx)
 	if err != nil {
 		fmt.Printf("Solr core ping:ng (%s %s)\n", solrserveruri, solrcorename)
 		return err
@@ -705,13 +757,13 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		//TODO: 拡張子とフォーマットのMAPから選択したい
 		switch extname {
 		case ".xlsx":
-			GenerateExcelIndex(si, filename, contentType, doc)
+			GenerateExcelIndex(sc, filename, contentType, doc)
 		case ".pdf":
-			GeneratePdfIndex(si, filename, contentType, doc)
+			GeneratePdfIndex(sc, filename, contentType, doc)
 		case ".docx":
-			GenerateWordxIndex(si, filename, contentType, doc)
+			GenerateWordxIndex(sc, filename, contentType, doc)
 		case ".txt":
-			GenerateTextIndex(si, filename, contentType, doc)
+			GenerateTextIndex(sc, filename, contentType, doc)
 		default:
 			fmt.Printf("\nunknown format: skip [%s]\n", filename)
 		}
@@ -719,8 +771,8 @@ func ImportFromFile(files []string, tikaserveruri string, solrserveruri string, 
 		successCount++
 	}
 
-	if si != nil {
-		_, err := si.Commit()
+	if sc != nil {
+		_, err := sc.Commit(ctx)
 		if err != nil {
 			fmt.Println(err)
 		}

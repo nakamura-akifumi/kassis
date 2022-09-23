@@ -17,7 +17,7 @@ func TestImportFromISBNFile(t *testing.T) {
 
 	err := ClearSolrDocument(valid_solrserveruri, valid_solrcorename)
 	if err != nil {
-		t.Fatal("failed test")
+		t.Fatal("failed test (solr process ?)")
 	}
 
 	files := []string{""}
@@ -41,16 +41,16 @@ func TestImportFromISBNFile(t *testing.T) {
 
 	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, res.Results.NumFound, 6)
+	assert.Equal(t, len(res), 6)
 
-	if len(res.Results.Docs) == 0 {
+	if len(res) == 0 {
 		t.Fatal("failed test")
 	}
 
-	assert.Equal(t, res.Results.Docs[0].Get("materialid").(string), "http://iss.ndl.go.jp/books/R100000002-I000007578504-00")
-	assert.Equal(t, res.Results.Docs[0].Get("mediatype").(string), "Book")
-	assert.Equal(t, res.Results.Docs[0].Get("objecttype").(string), "MENIFESTAION")
-	assert.Equal(t, res.Results.Docs[0].Get("title").(string), "夜空はなぜ暗い? : オルバースのパラドックスと宇宙論の変遷")
+	assert.Equal(t, res[0].Materialid, "http://iss.ndl.go.jp/books/R100000002-I000007578504-00")
+	assert.Equal(t, res[0].Mediatype, "Book")
+	assert.Equal(t, res[0].Objecttype, "MENIFESTAION")
+	assert.Equal(t, res[0].Title, "夜空はなぜ暗い? : オルバースのパラドックスと宇宙論の変遷")
 
 }
 
@@ -73,66 +73,69 @@ func TestImportFromISBNFileS2(t *testing.T) {
 
 	res, err := SolrQuery(valid_solrserveruri, valid_solrcorename, "")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, res.Results.NumFound, 1)
+	assert.Equal(t, len(res), 1)
 
-	if len(res.Results.Docs) == 0 {
+	if len(res) == 0 {
 		t.Fatal("failed test")
 	}
 
-	//TODO: struct がほしい
-	assert.Equal(t, res.Results.Docs[0].Get("mediatype").(string), "Book")
-	assert.Equal(t, res.Results.Docs[0].Get("objecttype").(string), "MENIFESTAION")
-	assert.Equal(t, res.Results.Docs[0].Get("materialid").(string), "http://iss.ndl.go.jp/books/R100000002-I027713635-00")
-	itfs := res.Results.Docs[0].Get("identifiers").([]interface{})
-	identifers, _ := InterfaceToStringArray(itfs)
-	assert.Contains(t, identifers, "JPNO@22822497")
-	assert.Contains(t, identifers, "TOHANMARCNO@33528665")
-	assert.Contains(t, identifers, "ISBN@978-4-585-20503-6")
+	assert.Equal(t, res[0].Mediatype, "Book")
+	assert.Equal(t, res[0].Objecttype, "MENIFESTAION")
+	assert.Equal(t, res[0].Materialid, "http://iss.ndl.go.jp/books/R100000002-I027713635-00")
+	assert.Contains(t, res[0].Identifiers, "JPNO@22822497")
+	assert.Contains(t, res[0].Identifiers, "TOHANMARCNO@33528665")
+	assert.Contains(t, res[0].Identifiers, "ISBN@978-4-585-20503-6")
 
-	assert.Equal(t, res.Results.Docs[0].Get("title").(string), "わかる!図書館情報学シリーズ")
-	assert.Equal(t, res.Results.Docs[0].Get("title_transcription").(string), "ワカル トショカン ジョウホウガク シリーズ")
-	assert.Equal(t, res.Results.Docs[0].Get("volume").(string), "第3巻")
-	assert.Equal(t, res.Results.Docs[0].Get("volume_transcription").(string), "3")
+	assert.Equal(t, res[0].Title, "わかる!図書館情報学シリーズ")
+	assert.Equal(t, res[0].TitleTranscription, "ワカル トショカン ジョウホウガク シリーズ")
+	assert.Equal(t, res[0].Volume, "第3巻")
+	assert.Equal(t, res[0].VolumeTranscription, "3")
 
-	assert.Equal(t, res.Results.Docs[0].Get("volume_title").(string), "")
-	assert.Equal(t, res.Results.Docs[0].Get("volume_title_transcription").(string), "")
+	assert.Equal(t, res[0].VolumeTitle, "")
+	assert.Equal(t, res[0].VolumeTitleTranscription, "")
 
-	assert.Equal(t, res.Results.Docs[0].Get("alternative").(string), "第3巻")
-	assert.Equal(t, res.Results.Docs[0].Get("alternative_transcription").(string), "3")
+	assert.Equal(t, res[0].Alternative, "メタデータとウェブサービス")
+	assert.Equal(t, res[0].AlternativeTranscription, "メタデータ ト ウェブ サービス")
 
-	assert.Equal(t, res.Results.Docs[0].Get("series_title").(string), "第3巻")
-	assert.Equal(t, res.Results.Docs[0].Get("series_title_transcription").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("edition").(string), "第3巻")
+	assert.Equal(t, res[0].SeriesTitle, "")
+	assert.Equal(t, res[0].SeriesTitleTranscription, "")
+	assert.Equal(t, res[0].Edition, "")
 
-	assert.Equal(t, res.Results.Docs[0].Get("creators").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("creators_transcription").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("creators_agent_identifier").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("creators_literal").(string), "3")
+	assert.Equal(t, res[0].Creators[0], "日本図書館情報学会")
+	assert.Empty(t, res[0].CreatorsTranscription)
+	assert.Equal(t, res[0].CreatorsAgentIdentifier[0], "http://id.ndl.go.jp/auth/entity/00694178")
+	assert.Equal(t, res[0].CreatorsLiteral[0], "日本図書館情報学会研究委員会 編")
 
-	assert.Equal(t, res.Results.Docs[0].Get("series_creator_literal").(string), "3")
+	assert.Empty(t, res[0].SeriesCreatorLiteral)
 
-	assert.Equal(t, res.Results.Docs[0].Get("publisher").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("publisher_agent_identifier").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("publisher_transcription").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("publication_place").(string), "3")
+	assert.Equal(t, res[0].Publisher, "勉誠出版")
+	assert.Empty(t, res[0].PublisherAgentIdentifier)
+	assert.Equal(t, res[0].PublisherTranscription, "ベンセイシュッパン")
+	assert.Equal(t, res[0].PublisherLocation, "東京")
+	assert.Equal(t, res[0].PublicationPlace, "ISO3166@JP")
 
-	assert.Equal(t, res.Results.Docs[0].Get("subjects").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("subjects_transcription").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("subjects_resource").(string), "3")
+	assert.Equal(t, res[0].Subjects[0], "メタデータ")
+	assert.Empty(t, res[0].SubjectsTranscription)
+	assert.Equal(t, res[0].SubjectsResource[0], "http://id.ndl.go.jp/auth/ndlsh/00981806")
 
-	assert.Equal(t, res.Results.Docs[0].Get("partInformation_title").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("partInformation_transcription").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("partInformation_description").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("partInformation_creator").(string), "3")
+	assert.Equal(t, len(res[0].Subjects), 3) //assert.Empty(t, res[0].Subjects[3])
+	assert.Empty(t, res[0].SubjectsTranscription)
+	assert.Equal(t, res[0].SubjectsResource[3], "http://id.ndl.go.jp/class/ndlc/UL21")
 
-	assert.Equal(t, res.Results.Docs[0].Get("descriptions").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("publication_date_literal").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("issued_w3cdtf").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("publication_date_from").(string), "3")
-	assert.Equal(t, res.Results.Docs[0].Get("publication_date_to").(string), "3")
+	assert.Equal(t, res[0].PartInformationTitle[0], "メタデータとウェブサービス")
 
-	assert.Equal(t, res.Results.Docs[0].Get("language").(string), "ja")
-	assert.Equal(t, res.Results.Docs[0].Get("originalLanguage").(string), "")
+	assert.Equal(t, res[0].PartInformationTitle[9], "メタデータ利用を支える技術")
+	//TODO: 途中に空白があると登録されない。検索するなら問題ないが。
+	assert.Equal(t, res[0].PartInformationCreator[8], "高久雅生 著")
+
+	assert.Equal(t, res[0].Descriptions[0], "索引あり")
+	assert.Equal(t, res[0].PublicationDateLiteral, "2016.11")
+	assert.Equal(t, res[0].IssuedW3cdtf, "2016")
+	assert.Equal(t, res[0].PublicationDateFrom, "2016.11")
+	assert.Equal(t, res[0].PublicationDateTo, "2016.11")
+
+	assert.Equal(t, res[0].Language, "jpn")
+	assert.Equal(t, res[0].OriginalLanguage, "")
 
 }
 
@@ -191,17 +194,17 @@ func TestFetchMaterialFromNDLByISBN(t *testing.T) {
 	assert.Equal(t, rdf.BibResource.Issued.Datatype, "http://purl.org/dc/terms/W3CDTF")
 	assert.Equal(t, rdf.BibResource.Issued.Text, "2022")
 
-	assert.Equal(t, rdf.BibResource.Description[0], "機器種別 : 機器不用")
-	assert.Equal(t, rdf.BibResource.Description[1], "キャリア種別 : 冊子")
-	assert.Equal(t, rdf.BibResource.Description[2], "表現種別 : テキスト")
-	assert.Equal(t, rdf.BibResource.Description[3], "索引あり")
-	assert.Equal(t, rdf.BibResource.Description[4], "NDC（9版）はNDC（10版）を自動変換した値である。")
+	assert.Equal(t, rdf.BibResource.Descriptions[0], "機器種別 : 機器不用")
+	assert.Equal(t, rdf.BibResource.Descriptions[1], "キャリア種別 : 冊子")
+	assert.Equal(t, rdf.BibResource.Descriptions[2], "表現種別 : テキスト")
+	assert.Equal(t, rdf.BibResource.Descriptions[3], "索引あり")
+	assert.Equal(t, rdf.BibResource.Descriptions[4], "NDC（9版）はNDC（10版）を自動変換した値である。")
 
-	assert.Equal(t, rdf.BibResource.Subject[0].Description.About, "http://id.ndl.go.jp/auth/ndlsh/00569223")
-	assert.Equal(t, rdf.BibResource.Subject[0].Description.Value, "プログラミング (コンピュータ)")
-	assert.Equal(t, rdf.BibResource.Subject[1].Resource, "http://id.ndl.go.jp/class/ndc10/007.64")
-	assert.Equal(t, rdf.BibResource.Subject[2].Resource, "http://id.ndl.go.jp/class/ndc9/007.64")
-	assert.Equal(t, rdf.BibResource.Subject[3].Resource, "http://id.ndl.go.jp/class/ndlc/M159")
+	assert.Equal(t, rdf.BibResource.Subjects[0].Description.About, "http://id.ndl.go.jp/auth/ndlsh/00569223")
+	assert.Equal(t, rdf.BibResource.Subjects[0].Description.Value, "プログラミング (コンピュータ)")
+	assert.Equal(t, rdf.BibResource.Subjects[1].Resource, "http://id.ndl.go.jp/class/ndc10/007.64")
+	assert.Equal(t, rdf.BibResource.Subjects[2].Resource, "http://id.ndl.go.jp/class/ndc9/007.64")
+	assert.Equal(t, rdf.BibResource.Subjects[3].Resource, "http://id.ndl.go.jp/class/ndlc/M159")
 
 	assert.Equal(t, rdf.BibResource.Language[0].Datatype, "http://purl.org/dc/terms/ISO639-2")
 	assert.Equal(t, rdf.BibResource.Language[0].Text, "jpn")
@@ -269,12 +272,15 @@ func TestSolrQuery(t *testing.T) {
 
 	res, err := SolrQuery(solrserveruri, solrcorename, "ぽっぽ焼き")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, res.Results.NumFound, 1)
-	for _, v := range res.Highlighting {
-		v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
-		//TODO: ぽっぽ焼き がハイライトさせたい
-		assert.Contains(t, v2, "<em>ぽっぽ</em>")
-	}
+	assert.Equal(t, len(res), 1)
+	//TODO: ハイライト対応
+	/*
+		for _, v := range res.Highlighting {
+			v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
+			//TODO: ぽっぽ焼き がハイライトさせたい
+			assert.Contains(t, v2, "<em>ぽっぽ</em>")
+		}
+	*/
 }
 
 func TestImportFromFile(t *testing.T) {
@@ -309,12 +315,12 @@ func TestImportFromFile(t *testing.T) {
 
 	res, err := SolrQuery(solrserveruri, solrcorename, "")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, res.Results.NumFound, 8)
+	assert.Equal(t, len(res), 8)
 
 	dir, _ = os.Getwd()
 	filepathname = filepath.Join(dir, "testdata", "Book1.xlsx")
 	targetid := filepathname + "データ1"
-	assert.Equal(t, res.Results.Docs[1].Get("materialid").(string), targetid)
+	assert.Equal(t, res[1].Materialid, targetid)
 
 	err = ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
@@ -331,7 +337,7 @@ func TestImportFromFile(t *testing.T) {
 	//TODO: 登録されたデータの内容などを確認したい
 	res, err = SolrQuery(solrserveruri, solrcorename, "")
 	assert.Equal(t, err, nil)
-	assert.Equal(t, res.Results.NumFound, 5)
+	assert.Equal(t, len(res), 5)
 
 	err = ClearSolrDocument(solrserveruri, solrcorename)
 	if err != nil {
@@ -348,7 +354,7 @@ func TestImportFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed test")
 	}
-	if res.Results.NumFound != 1 {
+	if len(res) != 1 {
 		t.Fatal("failed test")
 	}
 
@@ -368,7 +374,7 @@ func TestImportFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed test")
 	}
-	if res.Results.NumFound != 1 {
+	if len(res) != 1 {
 		t.Fatal("failed test")
 	}
 
@@ -387,7 +393,7 @@ func TestImportFromFile(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed test")
 	}
-	if res.Results.NumFound != 13 {
+	if len(res) != 13 {
 		t.Fatal("failed test")
 	}
 }

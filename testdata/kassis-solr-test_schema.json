@@ -1,0 +1,59 @@
+{
+    "replace-field" : {
+        "name":"id",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"true",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"materialid",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"true",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"objecttype",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"true",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"mediatype",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"true",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"title",
+        "type":"text_ja",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"title_transcription",
+        "type":"text_ja",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"identifiers",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"true"
+    }
+}
+    

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nakamura-akifumi/kassis"
 )
@@ -19,7 +20,7 @@ func main() {
 	flag.CommandLine.Usage = func() {
 		o := flag.CommandLine.Output()
 		_, _ = fmt.Fprint(o, "\nUsage: importer [COMMAND | help] [filepath | directory]\n")
-		_, _ = fmt.Fprint(o, "Where COMMAND := [raw | dcndlrdf | isbn]\n")
+		_, _ = fmt.Fprint(o, "Where COMMAND := [raw | ndlrdf | isbn]\n")
 		_, _ = fmt.Fprint(o, "      OPTIONS:\n")
 		flag.PrintDefaults()
 	}
@@ -31,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	actions := []string{"raw", "ndlxml", "isbn"}
+	actions := []string{"raw", "ndlrdf", "isbn"}
 	if kassiscore.ArrayContains(actions, strings.ToLower(flag.Arg(0))) == false {
 		fmt.Println("error: action is invalid")
 		flag.CommandLine.Usage()
@@ -85,6 +86,8 @@ func main() {
 		os.Exit(10)
 	}
 
+	starttime := time.Now()
+
 	switch actioname {
 	case "raw":
 		err = kassiscore.ImportFromFile(files, cfg.Tika.Serveruri, cfg.Solr.Serveruri, cfg.Solr.Corename)
@@ -92,8 +95,8 @@ func main() {
 			fmt.Println(err)
 			os.Exit(11)
 		}
-	case "dcndlrdf":
-		err = kassiscore.ImportFromFileNCNDLRDF(files, cfg.Solr.Serveruri, cfg.Solr.Corename)
+	case "ndlrdf":
+		_, err = kassiscore.ImportFromFileNCNDLRDF(files, cfg.Solr.Serveruri, cfg.Solr.Corename)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(12)
@@ -104,6 +107,8 @@ func main() {
 			fmt.Println(err)
 			os.Exit(13)
 		}
-
 	}
+	elapsedtime := time.Since(starttime)
+	fmt.Printf("Elapsed: %s\n", elapsedtime)
+
 }

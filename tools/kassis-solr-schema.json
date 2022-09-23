@@ -181,7 +181,7 @@
         "indexed":"true",
         "stored":"true",
         "required":"false",
-        "multiValued":"true"
+        "multiValued":"false"
     },
     "add-field" : {
         "name":"creators",
@@ -241,6 +241,14 @@
     },
     "add-field" : {
         "name":"publisher_transcription",
+        "type":"string",
+        "indexed":"true",
+        "stored":"true",
+        "required":"false",
+        "multiValued":"false"
+    },
+    "add-field" : {
+        "name":"publisher_location",
         "type":"string",
         "indexed":"true",
         "stored":"true",
@@ -313,8 +321,6 @@
         "required":"false",
         "multiValued":"true"
     },
-
-
     "add-field" : {
         "name":"descriptions",
         "type":"string",

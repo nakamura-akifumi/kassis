@@ -26,8 +26,8 @@ func HandlerGetMaterials(c echo.Context) error {
 		return err
 	}
 
-	log.Debug().Msg(fmt.Sprintf("%d", res.Results.NumFound))
-	wres.NumFound = res.Results.NumFound
+	log.Debug().Msg(fmt.Sprintf("%d", len(res)))
+	wres.NumFound = len(res)
 
 	KQ.Curretpage = 1
 	KQ.NumOfPage = 20
@@ -38,22 +38,23 @@ func HandlerGetMaterials(c echo.Context) error {
 	// convert to Material struct
 	var materials []Material
 
-	for k, v := range res.Results.Docs {
+	for k, v := range res {
 		fmt.Println(k, v)
 		var cts []string
-		for _, v2 := range v.Get("contents").([]interface{}) {
-			cts = append(cts, v2.(string))
+		for _, v2 := range v.Contents {
+			cts = append(cts, v2)
 		}
+
 		var m = Material{
-			ID:         v.Get("id").(string),
-			MaterialID: v.Get("materialid").(string),
+			ID:         v.ID,
+			MaterialID: v.Materialid,
 			ObjectType: "",
 			Foldername: "",
 			Filename:   "",
 			Sheetname:  "",
-			Mediatype:  v.Get("mediatype").(string),
+			Mediatype:  v.Mediatype,
 			Contents:   cts,
-			Title:      v.Get("title").(string),
+			Title:      v.Title,
 		}
 		//v2 := v.(map[string]interface{})["contents"].([]interface{})[0]
 

@@ -2,11 +2,13 @@ package kassiscore
 
 import (
 	"encoding/xml"
+	"fmt"
 	"github.com/google/uuid"
+	"github.com/nakamura-akifumi/kassis/internal/solr"
 	"github.com/rs/zerolog/log"
-	"github.com/vanng822/go-solr/solr"
 	"net/url"
 	"path"
+	"strings"
 )
 
 type SearchRetrieveResponse struct {
@@ -144,7 +146,7 @@ type NDLRDF struct {
 			Text     string `xml:",chardata"`
 			Datatype string `xml:"datatype,attr"`
 		} `xml:"issued"`
-		Subject []struct {
+		Subjects []struct {
 			Text        string `xml:",chardata"`
 			Datatype    string `xml:"datatype,attr"`
 			Resource    string `xml:"resource,attr"`
@@ -187,10 +189,10 @@ type NDLRDF struct {
 				Transcription string `xml:"transcription"`
 			} `xml:"Description"`
 		} `xml:"alternative"`
-		Description []string `xml:"description"`
-		Price       []string `xml:"price"`
-		Edition     string   `xml:"edition"`
-		Genre       []struct {
+		Descriptions []string `xml:"description"`
+		Price        []string `xml:"price"`
+		Edition      string   `xml:"edition"`
+		Genre        []struct {
 			Text        string `xml:",chardata"`
 			Description struct {
 				Text  string `xml:",chardata"`
@@ -234,7 +236,7 @@ type NDLRDF struct {
 			Resource string `xml:"resource,attr"`
 			Label    string `xml:"label,attr"`
 		} `xml:"isReplacedBy"`
-		OriginalLanguage struct {
+		OriginalLanguage []struct {
 			Text     string `xml:",chardata"`
 			Datatype string `xml:"datatype,attr"`
 		} `xml:"originalLanguage"`
@@ -267,7 +269,7 @@ type NDLRDF struct {
 	} `xml:"Item"`
 } /* `xml:"RDF"` */
 
-func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
+func AddSolrDocumentNDLRDF(sc *solr.SingleClient, rdf *NDLRDF) error {
 	materialid := rdf.BibAdminResource.About
 	br := rdf.BibResource
 	title := br.Title.Description.Value
@@ -294,6 +296,7 @@ func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
 		series_title = br.SeriesTitle[0].Description.Value
 		series_title_transcription = br.SeriesTitle[0].Description.Transcription
 	}
+	series_creator_literal := []string{}
 
 	edition := br.Edition
 
@@ -308,21 +311,91 @@ func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
 			creators_transcription = append(creators_transcription, c.Agent.Transcription)
 			//TODO: creatorにすべきかagentに収めるか
 			creators_agent_identifier = append(creators_agent_identifier, c.Agent.About)
-			creators_literal = append(creators_literal, c.Text)
+			cts := strings.ReplaceAll(c.Text, "\n", "")
+			cts = strings.TrimSpace(cts)
+			creators_literal = append(creators_literal, cts)
 		}
 	}
 
 	publisher := ""
 	publisher_transcription := ""
+	publisher_location := ""
 	if len(br.Publisher) > 0 {
 		publisher = br.Publisher[0].Agent.Name
 		publisher_transcription = br.Publisher[0].Agent.Transcription
+		publisher_location = br.Publisher[0].Agent.Location
 	}
 
 	//TODO: データ確認
 	//creator_alternative_literal :=
 
-	u, _ := url.Parse(rdf.BibResource.MaterialType[0].Resource)
+	var language string
+	if len(br.Language) > 0 {
+		for _, x := range br.Language {
+			if x.Datatype == "http://purl.org/dc/terms/ISO639-2" {
+				language = x.Text
+				break
+			}
+		}
+		if language == "" {
+			language = br.Language[0].Text
+		}
+	}
+	var original_language string
+	if len(br.OriginalLanguage) > 0 {
+		for _, x := range br.OriginalLanguage {
+			if x.Datatype == "http://purl.org/dc/terms/ISO639-2" {
+				original_language = x.Text
+				break
+			}
+		}
+		if original_language == "" {
+			original_language = br.OriginalLanguage[0].Text
+		}
+	}
+
+	var subjects []string
+	var subjects_transcription []string
+	var subjects_resource []string
+	if len(br.Subjects) > 0 {
+		for _, x := range br.Subjects {
+			subjects = append(subjects, x.Description.Value)
+			subjects_transcription = append(subjects_transcription, x.Description.Transcription)
+			if x.Description.About != "" {
+				subjects_resource = append(subjects_resource, x.Description.About)
+			} else {
+				subjects_resource = append(subjects_resource, x.Resource)
+			}
+		}
+	}
+
+	var partInformation_title []string
+	//var partInformation_transcription []string
+	//var partInformation_description []string
+	var partInformation_creator []string
+	if len(br.PartInformation) > 0 {
+		for _, x := range br.PartInformation {
+			partInformation_title = append(partInformation_title, x.Description.Title)
+			partInformation_creator = append(partInformation_creator, x.Description.Creator)
+		}
+	}
+
+	var descriptions []string
+	if len(br.Descriptions) > 0 {
+		for _, x := range br.Descriptions {
+			descriptions = append(descriptions, x)
+		}
+	}
+
+	publication_date_literal := br.Date
+	issued_w3cdtf := br.Issued.Text
+
+	u, _ := url.Parse(br.PublicationPlace.Datatype)
+	datatype := path.Base(u.Path)
+
+	publication_place := datatype + "@" + br.PublicationPlace.Text
+
+	u, _ = url.Parse(rdf.BibResource.MaterialType[0].Resource)
 	mediatype := path.Base(u.Path)
 
 	uuidObj, _ := uuid.NewUUID()
@@ -338,36 +411,51 @@ func AddSolrDocumentNDLRDF(si *solr.SolrInterface, rdf *NDLRDF) error {
 		identifiers = append(identifiers, s)
 	}
 
-	sdoc := solr.Document{
-		"id":                         id,
-		"materialid":                 materialid,
-		"objecttype":                 "MENIFESTAION",
-		"mediatype":                  mediatype,
-		"title":                      title,
-		"title_transcription":        title_transcription,
-		"identifiers":                identifiers,
-		"volume":                     volume,
-		"volume_transcription":       volume_transcription,
-		"volume_title":               volume_title,
-		"volume_title_transcription": volume_title_transcription,
-		"alternative":                alternative,
-		"alternative_transcription":  alternative_transcription,
-		"series_title":               series_title,
-		"series_title_transcription": series_title_transcription,
-		"edition":                    edition,
-		"creators":                   creators,
-		"creators_transcription":     creators_transcription,
-		"creators_agent_identifier":  creators_agent_identifier,
-		"creators_literal":           creators_literal,
-		"publisher":                  publisher,
-		"publisher_transcription":    publisher_transcription,
+	m := SolrMaterial{
+		ID:                       id,
+		Materialid:               materialid,
+		Objecttype:               "MENIFESTAION",
+		Mediatype:                mediatype,
+		Title:                    title,
+		TitleTranscription:       title_transcription,
+		Identifiers:              identifiers,
+		Volume:                   volume,
+		VolumeTranscription:      volume_transcription,
+		VolumeTitle:              volume_title,
+		VolumeTitleTranscription: volume_title_transcription,
+		Alternative:              alternative,
+		AlternativeTranscription: alternative_transcription,
+		SeriesTitle:              series_title,
+		SeriesTitleTranscription: series_title_transcription,
+		Edition:                  edition,
+		Creators:                 creators,
+		CreatorsTranscription:    creators_transcription,
+		CreatorsAgentIdentifier:  creators_agent_identifier,
+		CreatorsLiteral:          creators_literal,
+		Publisher:                publisher,
+		PublisherTranscription:   publisher_transcription,
+		PublisherAgentIdentifier: "",
+		PublisherLocation:        publisher_location,
+		PublicationPlace:         publication_place,
+		SeriesCreatorLiteral:     series_creator_literal,
+		Language:                 language,
+		OriginalLanguage:         original_language,
+		Subjects:                 subjects,
+		SubjectsTranscription:    subjects_transcription,
+		SubjectsResource:         subjects_resource,
+		PartInformationTitle:     partInformation_title,
+		PartInformationCreator:   partInformation_creator,
+		Descriptions:             descriptions,
+		PublicationDateLiteral:   publication_date_literal,
+		PublicationDateFrom:      publication_date_literal,
+		PublicationDateTo:        publication_date_literal,
+		IssuedW3cdtf:             issued_w3cdtf,
 	}
 
-	var sdocs []solr.Document
-	sdocs = append(sdocs, sdoc)
-
-	err := AddSolrRawDocument(si, sdocs)
+	err := AddSolrDocument(sc, m)
 	if err != nil {
+		fmt.Println("add error")
+		fmt.Println(err)
 		log.Fatal().Err(err)
 		return err
 	}

@@ -109,7 +109,7 @@ go run cmd/webserver/main.go
 
 ```shell
 .\tools\app\solr-8.11.2\bin\solr delete -c kassiscore_test
-go run cmd/configurator/main.go setupsolr
+go run cmd/configurator/main.go -c kassiscore_test setupsolr
 ```
 
 ### ディレクトリ構成図
