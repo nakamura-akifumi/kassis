@@ -116,6 +116,15 @@ func (ca *AdminClient) Get(params *url.Values) (*AdminResponse, error) {
 	return res, nil
 }
 
+func (ca *AdminClient) ForceUnload(corename string) (*AdminResponse, error) {
+	params := &url.Values{}
+	params.Add("core", corename)
+	params.Add("deleteIndex", "true")
+	params.Add("deleteDataDir", "true")
+	params.Add("deleteInstanceDir", "true")
+	return ca.Action("UNLOAD", params)
+}
+
 func (ca *AdminClient) Action(action string, params *url.Values) (*AdminResponse, error) {
 	switch strings.ToUpper(action) {
 	case "STATUS":

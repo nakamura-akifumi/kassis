@@ -12,6 +12,7 @@ type Response struct {
 	Error  *ResponseError  `json:"error"`
 	Doc    *Doc            `json:"doc"`
 	Status *string         `json:"status"`
+	//HighlightData *ResponseData   `json:"response"`
 }
 
 type ResponseHeader struct {

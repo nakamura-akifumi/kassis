@@ -177,7 +177,7 @@ func (c *SingleClient) Create(ctx context.Context, doc interface{}, opts *WriteO
 	return c.conn.request(ctx, http.MethodPost, uri, bodyBytes)
 }
 
-func (c *SingleClient) BatchCreate(ctx context.Context, docs interface{}, opts *WriteOptions) (*Response, error) {
+func (c *SingleClient) BulkCreate(ctx context.Context, docs interface{}, opts *WriteOptions) (*Response, error) {
 	uri := c.buildURL("/update/json/docs", opts.buildQueryOptions().Encode())
 
 	bodyBytes, err := interfaceToBytes(docs)
