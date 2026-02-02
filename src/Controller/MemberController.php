@@ -17,17 +17,32 @@ use Symfony\Component\Routing\Annotation\Route;
 class MemberController extends AbstractController
 {
     #[Route('/', name: 'app_member_index', methods: ['GET'])]
-    public function index(Request $request, MemberRepository $memberRepository): Response
+    public function index(Request $request, MemberRepository $memberRepository, \Symfony\Contracts\Translation\TranslatorInterface $translator): Response
     {
         $searchTerm = $request->query->get('q');
         $members = $memberRepository->findBySearchTerm($searchTerm);
-        $gridData = array_map(static function (Member $member): array {
+        $gridData = array_map(static function (Member $member) use ($translator): array {
+            $group1Value = $member->getGroup1();
+            $group1Key = 'Model.Member.values.Group1.' . $group1Value;
+            $group1Label = $translator->trans($group1Key);
+            if ($group1Label === $group1Key) {
+                $group1Label = $group1Value;
+            }
+            $roleValue = $member->getRole();
+            $roleLabel = null;
+            if ($roleValue !== null && trim($roleValue) !== '') {
+                $roleKey = 'Model.Member.values.Role.' . $roleValue;
+                $roleLabel = $translator->trans($roleKey);
+                if ($roleLabel === $roleKey) {
+                    $roleLabel = $roleValue;
+                }
+            }
             return [
                 'id' => $member->getId(),
                 'identifier' => $member->getIdentifier(),
                 'fullName' => $member->getFullName(),
-                'group1' => $member->getGroup1(),
-                'role' => $member->getRole(),
+                'group1Label' => $group1Label,
+                'roleLabel' => $roleLabel,
                 'status' => $member->getStatusLabel(),
                 'expiryDate' => $member->getExpiryDate()?->format('Y-m-d'),
                 'updatedAt' => $member->getUpdatedAt()?->format('Y-m-d H:i'),
@@ -43,7 +58,7 @@ class MemberController extends AbstractController
     }
 
     #[Route('/new', name: 'app_member_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager, ParameterBagInterface $params): Response
+    public function new(Request $request, EntityManagerInterface $entityManager, ParameterBagInterface $params, \Symfony\Contracts\Translation\TranslatorInterface $translator): Response
     {
         $member = new Member();
         if ($params->has('app.member.expiry_days')) {
@@ -53,7 +68,18 @@ class MemberController extends AbstractController
                 $member->setExpiryDate((new \DateTime())->modify('+' . $expiryDays . ' days'));
             }
         }
-        $form = $this->createForm(MemberType::class, $member);
+        if ($member->getStatus() === null) {
+            $member->setStatus(\App\Entity\Member::STATUS_ACTIVE);
+        }
+        if ($member->getRole() === null) {
+            $member->setRole('member');
+        }
+        $choices = $this->buildGroup1Choices($params, $translator);
+        $roleChoices = $this->buildRoleChoices($params, $translator);
+        $form = $this->createForm(MemberType::class, $member, [
+            'group1_choices' => $choices,
+            'role_choices' => $roleChoices,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -95,9 +121,14 @@ class MemberController extends AbstractController
     }
 
     #[Route('/{id}/edit', name: 'app_member_edit', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
-    public function edit(Request $request, Member $member, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, Member $member, EntityManagerInterface $entityManager, ParameterBagInterface $params, \Symfony\Contracts\Translation\TranslatorInterface $translator): Response
     {
-        $form = $this->createForm(MemberType::class, $member);
+        $choices = $this->buildGroup1Choices($params, $translator);
+        $roleChoices = $this->buildRoleChoices($params, $translator);
+        $form = $this->createForm(MemberType::class, $member, [
+            'group1_choices' => $choices,
+            'role_choices' => $roleChoices,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -162,5 +193,37 @@ class MemberController extends AbstractController
             'note' => $member?->getNote(),
             'isActive' => $isActive,
         ]);
+    }
+
+    private function buildGroup1Choices(ParameterBagInterface $params, \Symfony\Contracts\Translation\TranslatorInterface $translator): array
+    {
+        $group1Choices = $params->has('app.member.group1') ? (array) $params->get('app.member.group1') : [];
+        $group1Choices = array_values(array_filter($group1Choices, static fn($value) => trim((string) $value) !== ''));
+        $choices = [];
+        foreach ($group1Choices as $value) {
+            $key = 'Model.Member.values.Group1.' . $value;
+            $label = $translator->trans($key);
+            if ($label === $key) {
+                $label = $value;
+            }
+            $choices[$label] = $value;
+        }
+        return $choices;
+    }
+
+    private function buildRoleChoices(ParameterBagInterface $params, \Symfony\Contracts\Translation\TranslatorInterface $translator): array
+    {
+        $roleChoices = $params->has('app.member.role') ? (array) $params->get('app.member.role') : [];
+        $roleChoices = array_values(array_filter($roleChoices, static fn($value) => trim((string) $value) !== ''));
+        $choices = [];
+        foreach ($roleChoices as $value) {
+            $key = 'Model.Member.values.Role.' . $value;
+            $label = $translator->trans($key);
+            if ($label === $key) {
+                $label = $value;
+            }
+            $choices[$label] = $value;
+        }
+        return $choices;
     }
 }

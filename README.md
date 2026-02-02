@@ -11,10 +11,11 @@ kassisV2 は、書籍などを管理するアプリです。
 - 検索および検索結果の表示
 - ファイル添付機能（資料に対して添付ファイルのアップロード）
 - 棚卸機能
+- 予約貸出返却機能
 
 ## 必要なミドルウェア等
 
-PHP 8.3以上, MySQL 8.0以上
+PHP 8.3以上
 
 ## 動作環境の構築方法
 
@@ -46,7 +47,6 @@ DATABASE_URL="mysql://kassisv2:kassisv2passwd@localhost:3306/kassisv2db?serverVe
 ### Ubuntu 24.04 LTS
 
 sudo apt install php8.4-mysql
-
 sudo apt install php8.4-zip php8.4-intl php8.4-mbstring
 sudo apt install php8.4-xml php8.4-xmlwriter php8.4-simplexml php8.4-dom
 sudo apt install php8.4-sqlite3 

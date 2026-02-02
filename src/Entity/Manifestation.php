@@ -83,6 +83,9 @@ class Manifestation
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $contributor2 = null;
 
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $loan_restriction = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $release_date_string = null;
 
@@ -341,6 +344,17 @@ class Manifestation
     public function setContributor2(?string $contributor2): static
     {
         $this->contributor2 = $contributor2;
+        return $this;
+    }
+
+    public function getLoanRestriction(): ?string
+    {
+        return $this->loan_restriction;
+    }
+
+    public function setLoanRestriction(?string $loan_restriction): static
+    {
+        $this->loan_restriction = $loan_restriction;
         return $this;
     }
 

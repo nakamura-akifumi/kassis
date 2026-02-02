@@ -6,6 +6,7 @@ use App\Entity\Manifestation;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -106,6 +107,14 @@ class ManifestationType extends AbstractType
             ])
             ->add('contributor2', null, [
                 'required' => false,
+            ])
+            ->add('loan_restriction', ChoiceType::class, [
+                'required' => false,
+                'choices' => [
+                    '通常貸出' => '通常貸出',
+                    '貸出禁止' => '貸出禁止',
+                ],
+                'placeholder' => '選択してください',
             ])
         ;
     }

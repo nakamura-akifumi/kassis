@@ -33,7 +33,7 @@ class MemberRepository extends ServiceEntityRepository
             ->andWhere(
                 $qb->expr()->orX(
                     $qb->expr()->like('m.full_name', ':term'),
-                    $qb->expr()->like('m.full_name_yomi', ':term'),
+                    $qb->expr()->like('m.full_name_transcription', ':term'),
                     $qb->expr()->like('m.communication_address1', ':term'),
                     $qb->expr()->like('m.communication_address2', ':term'),
                 )

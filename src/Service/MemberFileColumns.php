@@ -25,10 +25,11 @@ final class MemberFileColumns
             'getter' => 'getFullName',
             'importKey' => 'full_name',
         ],
-        'fullNameYomi' => [
-            'labelKey' => 'Model.Member.fields.FullNameYomi',
-            'getter' => 'getFullNameYomi',
-            'importKey' => 'full_name_yomi',
+        'fullNameTranscription' => [
+            'labelKey' => 'Model.Member.fields.FullNameTranscription',
+            'getter' => 'getFullNameTranscription',
+            'importKey' => 'full_name_transcription',
+            'headerAliases' => ['full_name_yomi', 'フルネームヨミ'],
         ],
         'group1' => [
             'labelKey' => 'Model.Member.fields.Group1',

@@ -26,11 +26,14 @@ class MemberType extends AbstractType
             ->add('full_name', TextType::class, [
                 'required' => true,
             ])
-            ->add('full_name_yomi', TextType::class, [
+            ->add('full_name_transcription', TextType::class, [
                 'required' => false,
             ])
-            ->add('group1', TextType::class, [
+            ->add('group1', ChoiceType::class, [
                 'required' => false,
+                'empty_data' => 'standard',
+                'choices' => $options['group1_choices'],
+                'placeholder' => '選択してください',
             ])
             ->add('group2', TextType::class, [
                 'required' => false,
@@ -41,12 +44,15 @@ class MemberType extends AbstractType
             ->add('communication_address2', TextType::class, [
                 'required' => false,
             ])
-            ->add('role', TextType::class, [
+            ->add('role', ChoiceType::class, [
                 'required' => false,
+                'choices' => $options['role_choices'],
+                'placeholder' => '選択してください',
             ])
             ->add('status', ChoiceType::class, [
                 'required' => false,
                 'placeholder' => '選択してください',
+                'empty_data' => Member::STATUS_ACTIVE,
                 'choices' => [
                     '有効' => Member::STATUS_ACTIVE,
                     '無効' => Member::STATUS_INACTIVE,
@@ -66,6 +72,8 @@ class MemberType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Member::class,
+            'group1_choices' => [],
+            'role_choices' => [],
         ]);
     }
 }

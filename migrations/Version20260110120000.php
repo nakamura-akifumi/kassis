@@ -20,7 +20,7 @@ final class Version20260110120000 extends AbstractMigration
             CREATE TABLE code (
                 type VARCHAR(32) NOT NULL,
                 identifier VARCHAR(255) NOT NULL,
-                value INT NOT NULL,
+                value VARCHAR(32) NOT NULL,
                 displayname VARCHAR(255) DEFAULT NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,

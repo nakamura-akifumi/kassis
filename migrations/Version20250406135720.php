@@ -44,6 +44,7 @@ final class Version20250406135720 extends AbstractMigration
                               location3 VARCHAR(255) DEFAULT NULL,
                               contributor1 VARCHAR(255) DEFAULT NULL,
                               contributor2 VARCHAR(255) DEFAULT NULL,
+                              loan_restriction VARCHAR(16) DEFAULT NULL,
                               release_date_string VARCHAR(255) DEFAULT NULL,
                               price DECIMAL(11,2) DEFAULT NULL,
                               price_currency VARCHAR(3) DEFAULT NULL,

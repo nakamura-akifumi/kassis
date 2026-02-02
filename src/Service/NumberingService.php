@@ -56,15 +56,16 @@ class NumberingService
                 $conn->insert('code', [
                     'type' => self::TYPE_NUMBERING,
                     'identifier' => self::IDENTIFIER_MANIFESTATION,
-                    'value' => $value,
+                    'value' => (string) $value,
                     'displayname' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
             } else {
-                $value = (int) $row['value'] + 1;
+                $current = (int) $row['value'];
+                $value = $current + 1;
                 $conn->update('code', [
-                    'value' => $value,
+                    'value' => (string) $value,
                     'updated_at' => $now,
                 ], [
                     'type' => self::TYPE_NUMBERING,

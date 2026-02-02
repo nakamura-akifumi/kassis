@@ -20,10 +20,6 @@
                 <table class="table table-sm mb-0">
                     <tbody>
                         <tr>
-                            <th>ID</th>
-                            <td>{{ member.id }}</td>
-                        </tr>
-                        <tr>
                             <th>{{ 'Model.Member.fields.Identifier' | trans }}</th>
                             <td>{{ member.identifier }}</td>
                         </tr>
@@ -32,12 +28,14 @@
                             <td>{{ member.fullName }}</td>
                         </tr>
                         <tr>
-                            <th>{{ 'Model.Member.fields.FullNameYomi' | trans }}</th>
-                            <td>{{ member.fullNameYomi }}</td>
+                            <th>{{ 'Model.Member.fields.FullNameTranscription' | trans }}</th>
+                            <td>{{ member.fullNameTranscription }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Member.fields.Group1' | trans }}</th>
-                            <td>{{ member.group1 }}</td>
+                            {% set group1Key = 'Model.Member.values.Group1.' ~ member.group1 %}
+                            {% set group1Label = group1Key|trans %}
+                            <td>{{ group1Label == group1Key ? member.group1 : group1Label }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Member.fields.Group2' | trans }}</th>
@@ -53,7 +51,13 @@
                         </tr>
                         <tr>
                             <th>{{ 'Model.Member.fields.Role' | trans }}</th>
-                            <td>{{ member.role }}</td>
+                            {% if member.role %}
+                                {% set roleKey = 'Model.Member.values.Role.' ~ member.role %}
+                                {% set roleLabel = roleKey|trans %}
+                                <td>{{ roleLabel == roleKey ? member.role : roleLabel }}</td>
+                            {% else %}
+                                <td></td>
+                            {% endif %}
                         </tr>
                         <tr>
                             <th>{{ 'Model.Member.fields.Status' | trans }}</th>

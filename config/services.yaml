@@ -15,8 +15,12 @@ parameters:
         panel: 20
         grid: 1000
         map: 100
-    app.member.expiry_days: 365
+    app.member.expiry_days: 1095
     app.checkout.due_days: 14
+    app.code.types: ['manifestation_type1', 'checkout_max_loans', 'checkout_max_renewals', 'checkout_due_date']
+    app.member.group1: ['standard', 'vip', 'guest']
+    app.member.status: ['active', 'inactive', 'expired']
+    app.member.role: ['member','staff','admin']
 
 services:
     # default configuration for services in *this* file

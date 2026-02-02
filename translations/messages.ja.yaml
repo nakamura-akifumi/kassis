@@ -43,6 +43,7 @@ Model:
       Location3: "場所３"
       Contributor1: "貢献者１"
       Contributor2: "貢献者２"
+      LoanRestriction: "利用制限"
       Status1: "ステータス１"
       Status2: "ステータス２"
       ReleaseDateString: "発売日"
@@ -54,19 +55,28 @@ Model:
   Member:
     name: "利用者"
     display_identifier: "利用者識別子"
+    values:
+      Group1:
+        "standard": "一般会員"
+        "guest": "広域利用"
+        "vip": "特別会員"
+      Role:
+        "member": "一般利用者"
+        "staff": "スタッフ"
+        "admin": "管理者"
     fields:
       Id: "ID"
       Identifier: "識別子"
       FullName: "フルネーム"
-      FullNameYomi: "フルネームヨミ"
+      FullNameTranscription: "フルネームヨミ"
       Group1: "利用者グループ1"
       Group2: "利用者グループ2"
       CommunicationAddress1: "コミュニケーションアドレス1"
       CommunicationAddress2: "コミュニケーションアドレス2"
       Role: "権限"
+      ExpiryDate: "有効期限"
       Status: "状態"
       Note: "注記"
-      ExpiryDate: "有効期限"
       CreatedAt: "作成日時"
       UpdatedAt: "更新日時"
 Workflow:

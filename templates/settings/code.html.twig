@@ -1,0 +1,183 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}コード設定{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">コード設定</h1>
+            <p class="text-muted small mb-0">codeテーブルの内容を保守します。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_home') }}">ホームへ</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <strong class="small">新規追加</strong>
+        </div>
+        <div class="card-body py-2">
+            <form class="row g-2 align-items-end" method="post" action="{{ path('app_settings_code_create') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('code_create') }}">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="code-type">種別</label>
+                    <select class="form-select form-select-sm" id="code-type" name="type" required>
+                        <option value="">選択してください</option>
+                        {% for option in typeOptions %}
+                            <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="code-identifier">識別子</label>
+                    <input type="text" class="form-control form-control-sm" id="code-identifier" name="identifier" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="code-value">値</label>
+                    <input type="text" class="form-control form-control-sm" id="code-value" name="value" required maxlength="32">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="code-displayname">表示名</label>
+                    <input type="text" class="form-control form-control-sm" id="code-displayname" name="displayname">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">追加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <strong>一覧</strong>
+        </div>
+        <div class="card-body p-0">
+            {% if codes is empty %}
+                <div class="p-3 small text-muted">登録データがありません。</div>
+            {% else %}
+                <div id="code-grid"></div>
+                <form id="code-update-form" method="post" action="{{ path('app_settings_code_update') }}" class="d-none">
+                    <input type="hidden" name="_token" value="{{ csrf_token('code_update') }}">
+                    <input type="hidden" name="type">
+                    <input type="hidden" name="identifier">
+                    <input type="hidden" name="value">
+                    <input type="hidden" name="displayname">
+                </form>
+                <form id="code-delete-form" method="post" action="{{ path('app_settings_code_delete') }}" class="d-none">
+                    <input type="hidden" name="_token" value="{{ csrf_token('code_delete') }}">
+                    <input type="hidden" name="type">
+                    <input type="hidden" name="identifier">
+                </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if codes is not empty %}
+    <script>
+        const gridData = {{ gridData|json_encode|raw }};
+        const parentElement = document.getElementById('code-grid');
+        const updateForm = document.getElementById('code-update-form');
+        const deleteForm = document.getElementById('code-delete-form');
+
+        if (parentElement) {
+            parentElement.style.width = '100%';
+            parentElement.style.height = '480px';
+            parentElement.style.border = '1px solid #ddd';
+
+            const records = (gridData || []).map(r => Object.assign({ __update: '更', __delete: '削' }, r));
+
+        const header = [
+            { field: '__update', caption: '', width: 44, style: { textAlign: 'center', bgColor: '#eef3ff', color: '#0d6efd' } },
+            { field: '__delete', caption: '', width: 44, style: { textAlign: 'center', bgColor: '#fff0f0', color: '#dc3545' } },
+            { field: 'type', caption: '種別', width: 140 },
+            { field: 'identifier', caption: '識別子', width: 200 },
+            { field: 'value', caption: '値', width: 160 },
+            { field: 'displayname', caption: '表示名', width: 220 },
+            { field: 'updatedAt', caption: '更新日時', width: 140 },
+        ];
+
+            const grid = new cheetahGrid.ListGrid({
+                parentElement: parentElement,
+                header: header,
+                records: records,
+                frozenColCount: 2,
+                defaultRowHeight: 28,
+                headerRowHeight: 28,
+                theme: {
+                    defaultStyle: {
+                        font: '12px "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif',
+                    },
+                },
+            });
+
+        const typeOptions = {{ typeOptions|default([])|json_encode|raw }};
+
+        function submitUpdate(record) {
+            if (!updateForm) return;
+            const currentValue = record.value ?? '';
+            const currentDisplayname = record.displayname ?? '';
+            const currentType = record.type ?? '';
+            if (typeOptions.length > 0 && !typeOptions.includes(currentType)) {
+                alert('種別が不正です。');
+                return;
+            }
+            const newValue = window.prompt('値を入力してください', currentValue);
+            if (newValue === null) return;
+            if (String(newValue).trim() === '') {
+                alert('値は必須です。');
+                return;
+            }
+                if (String(newValue).length > 32) {
+                    alert('値は32文字以内で入力してください。');
+                    return;
+                }
+                const newDisplayname = window.prompt('表示名を入力してください（空欄可）', currentDisplayname ?? '');
+                if (newDisplayname === null) return;
+
+                updateForm.querySelector('input[name="type"]').value = record.type || '';
+                updateForm.querySelector('input[name="identifier"]').value = record.identifier || '';
+                updateForm.querySelector('input[name="value"]').value = String(newValue);
+                updateForm.querySelector('input[name="displayname"]').value = String(newDisplayname);
+                updateForm.submit();
+            }
+
+            function submitDelete(record) {
+                if (!deleteForm) return;
+                if (!window.confirm('削除しますか？')) return;
+                deleteForm.querySelector('input[name="type"]').value = record.type || '';
+                deleteForm.querySelector('input[name="identifier"]').value = record.identifier || '';
+                deleteForm.submit();
+            }
+
+            grid.listen('click_cell', function(args) {
+                if (!args) return;
+                if (args.col !== 0 && args.col !== 1) return;
+
+                let rec = args.record || null;
+                if (!rec && grid.records && typeof args.row === 'number') {
+                    const idx = Math.max(0, args.row - 1);
+                    rec = grid.records[idx] || null;
+                }
+                if (!rec) return;
+
+                if (args.col === 0) {
+                    submitUpdate(rec);
+                } else {
+                    submitDelete(rec);
+                }
+            });
+
+            grid.listen('mousemove_cell', function(args) {
+                if (!args) return;
+                parentElement.style.cursor = (args.col === 0 || args.col === 1) ? 'pointer' : '';
+            });
+            grid.listen('mouseleave_grid', function() {
+                parentElement.style.cursor = '';
+            });
+        }
+    </script>
+{% endif %}
+{% endblock %}

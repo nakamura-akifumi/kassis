@@ -38,10 +38,10 @@ class Member
     private ?string $full_name = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $full_name_yomi = null;
+    private ?string $full_name_transcription = null;
 
-    #[ORM\Column(length: 32, nullable: true)]
-    private ?string $group1 = null;
+    #[ORM\Column(length: 32)]
+    private string $group1 = 'standard';
 
     #[ORM\Column(length: 32, nullable: true)]
     private ?string $group2 = null;
@@ -97,25 +97,26 @@ class Member
         return $this;
     }
 
-    public function getFullNameYomi(): ?string
+    public function getFullNameTranscription(): ?string
     {
-        return $this->full_name_yomi;
+        return $this->full_name_transcription;
     }
 
-    public function setFullNameYomi(?string $full_name_yomi): static
+    public function setFullNameTranscription(?string $full_name_transcription): static
     {
-        $this->full_name_yomi = $full_name_yomi;
+        $this->full_name_transcription = $full_name_transcription;
         return $this;
     }
 
-    public function getGroup1(): ?string
+    public function getGroup1(): string
     {
         return $this->group1;
     }
 
     public function setGroup1(?string $group1): static
     {
-        $this->group1 = $group1;
+        $trimmed = trim((string) $group1);
+        $this->group1 = $trimmed !== '' ? $trimmed : 'standard';
         return $this;
     }
 
@@ -246,6 +247,9 @@ class Member
     #[ORM\PrePersist]
     public function prePersist(): void
     {
+        if (trim($this->group1) === '') {
+            $this->group1 = 'standard';
+        }
         $this->created_at = new \DateTime();
         $this->updated_at = new \DateTime();
     }
@@ -253,6 +257,9 @@ class Member
     #[ORM\PreUpdate]
     public function preUpdate(): void
     {
+        if (trim($this->group1) === '') {
+            $this->group1 = 'standard';
+        }
         $this->updated_at = new \DateTime();
     }
 }

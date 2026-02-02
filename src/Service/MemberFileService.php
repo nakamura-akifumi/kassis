@@ -153,11 +153,13 @@ class MemberFileService
                     if (!$this->isBlank($rowData['full_name'])) {
                         $member->setFullName((string) $rowData['full_name']);
                     }
-                    if (!$this->isBlank($rowData['full_name_yomi'])) {
-                        $member->setFullNameYomi((string) $rowData['full_name_yomi']);
+                    if (!$this->isBlank($rowData['full_name_transcription'])) {
+                        $member->setFullNameTranscription((string) $rowData['full_name_transcription']);
                     }
                     if (!$this->isBlank($rowData['group1'])) {
                         $member->setGroup1((string) $rowData['group1']);
+                    } else {
+                        $member->setGroup1('standard');
                     }
                     if (!$this->isBlank($rowData['group2'])) {
                         $member->setGroup2((string) $rowData['group2']);
