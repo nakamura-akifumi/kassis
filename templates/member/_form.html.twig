@@ -5,7 +5,7 @@
         <div class="row g-2">
             <div class="col-md-6">
                 {{ form_label(form.identifier, 'Model.Member.fields.Identifier' | trans, {'label_attr': {'class': 'form-label small mb-0 required fw-bold text-danger'}}) }}
-                {{ form_widget(form.identifier, {'attr': {'class': 'form-control form-control-sm border-danger', 'autofocus': 'autofocus'}}) }}
+                {{ form_widget(form.identifier, {'attr': {'class': 'form-control form-control-sm', 'autofocus': 'autofocus'}}) }}
                 {% if not form.identifier.vars.valid %}
                     <div class="invalid-feedback d-block">
                         {{ form_errors(form.identifier) }}
@@ -14,7 +14,7 @@
             </div>
             <div class="col-md-6">
                 {{ form_label(form.full_name, 'Model.Member.fields.FullName' | trans, {'label_attr': {'class': 'form-label small mb-0 required fw-bold text-danger'}}) }}
-                {{ form_widget(form.full_name, {'attr': {'class': 'form-control form-control-sm border-danger'}}) }}
+                {{ form_widget(form.full_name, {'attr': {'class': 'form-control form-control-sm'}}) }}
                 {% if not form.full_name.vars.valid %}
                     <div class="invalid-feedback d-block">
                         {{ form_errors(form.full_name) }}

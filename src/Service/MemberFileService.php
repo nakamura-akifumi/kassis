@@ -9,12 +9,14 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Csv;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Throwable;
@@ -25,6 +27,7 @@ class MemberFileService
         private TranslatorInterface $t,
         private EntityManagerInterface $entityManager,
         private MemberRepository $memberRepository,
+        private ParameterBagInterface $parameterBag,
         private LoggerInterface $logger,
     ) {
     }
@@ -122,12 +125,22 @@ class MemberFileService
                 return $result;
             }
 
+            $allowedGroup1 = $this->getAllowedMemberValues('app.member.group1');
+            $allowedRole = $this->getAllowedMemberValues('app.member.role');
+            $allowedStatus = $this->getAllowedMemberValues('app.member.status');
+            $group1LabelMap = $this->buildValueLabelMap($allowedGroup1, 'Model.Member.values.Group1.');
+            $roleLabelMap = $this->buildValueLabelMap($allowedRole, 'Model.Member.values.Role.');
+
+            $seenIdentifiers = [];
             for ($row = 2; $row <= $highestRow; $row++) {
                 try {
                     $rowData = $this->generateFreshRow();
                     $hasValue = false;
                     foreach ($headerMap as $colIndex => $importKey) {
                         $cellValue = $sheet->getCell([$colIndex, $row])->getValue();
+                        if ($cellValue instanceof RichText) {
+                            $cellValue = $cellValue->getPlainText();
+                        }
                         if (!$this->isBlank($cellValue)) {
                             $hasValue = true;
                         }
@@ -139,7 +152,39 @@ class MemberFileService
                         continue;
                     }
 
-                    $member = $this->resolveMember($rowData);
+                    if ($this->isBlank($rowData['identifier'])) {
+                        $result['errors']++;
+                        $result['errorMessages'][] = sprintf('%d行目: 識別子がありません。', $row);
+                        continue;
+                    }
+
+                    $normalizedStatus = null;
+                    [$normalizedGroup1, $group1Valid] = $this->normalizeTranslatedValue($rowData['group1'], $allowedGroup1, $group1LabelMap);
+                    if (!$group1Valid) {
+                        $result['errors']++;
+                        $result['errorMessages'][] = sprintf('%d行目: 不正な利用者グループ1 %s', $row, $rowData['group1']);
+                        continue;
+                    }
+                    if ($normalizedGroup1 !== null) {
+                        $rowData['group1'] = $normalizedGroup1;
+                    }
+                    [$normalizedRole, $roleValid] = $this->normalizeTranslatedValue($rowData['role'], $allowedRole, $roleLabelMap);
+                    if (!$roleValid) {
+                        $result['errors']++;
+                        $result['errorMessages'][] = sprintf('%d行目: 不正な権限 %s', $row, $rowData['role']);
+                        continue;
+                    }
+                    if ($normalizedRole !== null) {
+                        $rowData['role'] = $normalizedRole;
+                    }
+                    [$normalizedStatus, $statusValid] = $this->normalizeStatusValue($rowData['status'], $allowedStatus);
+                    if (!$statusValid) {
+                        $result['errors']++;
+                        $result['errorMessages'][] = sprintf('%d行目: 不正な状態 %s', $row, $rowData['status']);
+                        continue;
+                    }
+
+                    $member = $this->resolveMember($rowData, $seenIdentifiers);
 
                     if ($member === null) {
                         $result['errors']++;
@@ -174,12 +219,6 @@ class MemberFileService
                         $member->setRole((string) $rowData['role']);
                     }
                     if (!$this->isBlank($rowData['status'])) {
-                        $normalizedStatus = Member::normalizeStatus((string) $rowData['status']);
-                        if ($normalizedStatus === null) {
-                            $result['errors']++;
-                            $result['errorMessages'][] = sprintf('%d行目: 不正な状態 %s', $row, $rowData['status']);
-                            continue;
-                        }
                         $member->setStatus($normalizedStatus);
                     }
                     if (!$this->isBlank($rowData['note'])) {
@@ -229,6 +268,9 @@ class MemberFileService
         $labelMap = MemberFileColumns::getImportHeaderLabelMap($this->t);
         for ($col = 1; $col <= $highestColIndex; $col++) {
             $raw = $sheet->getCell([$col, 1])->getValue();
+            if ($raw instanceof RichText) {
+                $raw = $raw->getPlainText();
+            }
             $label = is_string($raw) ? trim($raw) : (string) $raw;
             if ($label === '') {
                 continue;
@@ -249,30 +291,37 @@ class MemberFileService
         return $row;
     }
 
-    private function resolveMember(array $rowData): ?Member
+    /**
+     * @param array<string, mixed> $rowData
+     * @param array<string, Member> $seenIdentifiers
+     */
+    private function resolveMember(array $rowData, array &$seenIdentifiers): ?Member
     {
-        $id = $rowData['id'] ?? null;
         $identifier = $rowData['identifier'] ?? null;
-
-        if (!$this->isBlank($id)) {
-            $member = $this->memberRepository->find((int) $id);
-            if ($member !== null) {
-                return $member;
+        $identifierKey = null;
+        if (!$this->isBlank($identifier)) {
+            $identifierKey = trim((string) $identifier);
+            if (isset($seenIdentifiers[$identifierKey])) {
+                return $seenIdentifiers[$identifierKey];
             }
         }
 
-        if (!$this->isBlank($identifier)) {
-            $existing = $this->memberRepository->findOneBy(['identifier' => (string) $identifier]);
+        if ($identifierKey !== null) {
+            $existing = $this->memberRepository->findOneBy(['identifier' => $identifierKey]);
             if ($existing !== null) {
+                $this->logger->info('Member already exists: ' . $identifierKey);
+                $seenIdentifiers[$identifierKey] = $existing;
                 return $existing;
             }
         }
 
-        if ($this->isBlank($identifier)) {
+        if ($identifierKey === null) {
             return null;
         }
 
-        return new Member();
+        $member = new Member();
+        $seenIdentifiers[$identifierKey] = $member;
+        return $member;
     }
 
     private function isBlank($value): bool
@@ -284,5 +333,64 @@ class MemberFileService
             return trim($value) === '';
         }
         return false;
+    }
+
+    private function getAllowedMemberValues(string $parameter): array
+    {
+        $values = $this->parameterBag->get($parameter);
+        return is_array($values) ? $values : [];
+    }
+
+    /**
+     * @param string[] $allowedValues
+     * @param array<string, string> $labelMap
+     * @return array{0: ?string, 1: bool}
+     */
+    private function normalizeTranslatedValue($value, array $allowedValues, array $labelMap): array
+    {
+        if ($this->isBlank($value)) {
+            return [null, true];
+        }
+        $trimmed = trim((string) $value);
+        if (in_array($trimmed, $allowedValues, true)) {
+            return [$trimmed, true];
+        }
+        if (isset($labelMap[$trimmed])) {
+            return [$labelMap[$trimmed], true];
+        }
+        return [null, false];
+    }
+
+    /**
+     * @param string[] $allowedStatus
+     * @return array{0: ?string, 1: bool}
+     */
+    private function normalizeStatusValue($value, array $allowedStatus): array
+    {
+        if ($this->isBlank($value)) {
+            return [null, true];
+        }
+        $normalized = Member::normalizeStatus((string) $value);
+        if ($normalized === null || !in_array($normalized, $allowedStatus, true)) {
+            return [null, false];
+        }
+        return [$normalized, true];
+    }
+
+    /**
+     * @param string[] $allowedValues
+     * @return array<string, string>
+     */
+    private function buildValueLabelMap(array $allowedValues, string $prefix): array
+    {
+        $map = [];
+        foreach ($allowedValues as $value) {
+            $key = $prefix . $value;
+            $label = $this->t->trans($key);
+            if ($label !== $key) {
+                $map[$label] = $value;
+            }
+        }
+        return $map;
     }
 }

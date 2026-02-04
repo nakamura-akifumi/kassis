@@ -11,7 +11,7 @@
                 <div class="row g-2">
                     <div class="col-md-6">
                         {{ form_label(form.title, 'Model.Manifestation.fields.Title' | trans, {'label_attr': {'class': 'form-label small mb-0 required fw-bold text-danger'}}) }}
-                        {{ form_widget(form.title, {'attr': {'class': 'form-control form-control-sm border-danger', 'placeholder': 'タイトルを入力（必須）'}}) }}
+                        {{ form_widget(form.title, {'attr': {'class': 'form-control form-control-sm', 'placeholder': 'タイトルを入力（必須）'}}) }}
                         {% if not form.title.vars.valid %}
                             <div class="invalid-feedback d-block">
                                 {{ form_errors(form.title) }}
@@ -24,7 +24,7 @@
                     </div>
                     <div class="col-md-6">
                         {{ form_label(form.identifier, 'Model.Manifestation.fields.Identifier' | trans, {'label_attr': {'class': 'form-label small mb-0 required fw-bold text-danger'}}) }}
-                        {{ form_widget(form.identifier, {'attr': {'class': 'form-control form-control-sm border-danger', 'placeholder': '例：978-4-XXXX-XXXX-X（必須）'}}) }}
+                        {{ form_widget(form.identifier, {'attr': {'class': 'form-control form-control-sm', 'placeholder': '例：978-4-XXXX-XXXX-X（必須）'}}) }}
                         {% if not form.identifier.vars.valid %}
                             <div class="invalid-feedback d-block">
                                 {{ form_errors(form.identifier) }}
