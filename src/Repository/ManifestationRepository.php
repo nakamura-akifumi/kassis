@@ -139,6 +139,12 @@ class ManifestationRepository extends ServiceEntityRepository
             case 'identifier_desc':
                 $qb->orderBy('m.identifier', 'DESC');
                 break;
+            case 'release_date_end_asc':
+                $qb->orderBy('m.release_date_end', 'ASC');
+                break;
+            case 'release_date_end_desc':
+                $qb->orderBy('m.release_date_end', 'DESC');
+                break;
             case 'created_at_asc':
             default:
                 $qb->orderBy('m.created_at', 'ASC');

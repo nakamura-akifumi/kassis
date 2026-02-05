@@ -89,6 +89,12 @@ class Manifestation
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $release_date_string = null;
 
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $release_date_start = null;
+
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $release_date_end = null;
+
     #[ORM\Column(type: Types::DECIMAL, precision: 11, scale: 2, nullable: true)]
     private ?string $price = null;
 
@@ -366,7 +372,18 @@ class Manifestation
     public function setReleaseDateString(?string $release_date_string): static
     {
         $this->release_date_string = $release_date_string;
+        $this->normalizeReleaseDateRange($release_date_string);
         return $this;
+    }
+
+    public function getReleaseDateStart(): ?\DateTimeInterface
+    {
+        return $this->release_date_start;
+    }
+
+    public function getReleaseDateEnd(): ?\DateTimeInterface
+    {
+        return $this->release_date_end;
     }
 
     public function getFormattedPrice(): ?string
@@ -534,6 +551,7 @@ class Manifestation
     {
         $this->created_at = new \DateTime();
         $this->updated_at = new \DateTime();
+        $this->normalizeReleaseDateRange($this->release_date_string);
         
         // status1のデフォルト値を設定
         if (empty($this->status1)) {
@@ -545,6 +563,7 @@ class Manifestation
     public function preUpdate(): void
     {
         $this->updated_at = new \DateTime();
+        $this->normalizeReleaseDateRange($this->release_date_string);
     }
 
     public function getAmazonUrl(): ?string
@@ -563,4 +582,212 @@ class Manifestation
         return 'https://www.' . $domain . '/dp/' . $this->getExternalIdentifier3();
     }
 
+    private function normalizeReleaseDateRange(?string $release_date_string): void
+    {
+        $release_date_string = trim((string) $release_date_string);
+        if ($release_date_string === '') {
+            $this->release_date_start = null;
+            $this->release_date_end = null;
+            return;
+        }
+
+        $wareki_range = $this->parseWarekiRange($release_date_string);
+        if ($wareki_range !== null) {
+            $this->applyReleaseDateRange($wareki_range);
+            return;
+        }
+
+        $wareki_date = $this->parseWarekiDate($release_date_string, null);
+        if ($wareki_date !== null) {
+            $this->applyReleaseDateRange($wareki_date);
+            return;
+        }
+
+        if (preg_match('/^(\d{4})$/', $release_date_string, $matches) === 1) {
+            $year = (int) $matches[1];
+            $this->release_date_start = new \DateTime(sprintf('%04d-01-01', $year));
+            $this->release_date_end = new \DateTime(sprintf('%04d-12-31', $year));
+            return;
+        }
+
+        if (preg_match('/^(\d{4})[.\/-](\d{1,2})-(\d{4})[.\/-](\d{1,2})$/', $release_date_string, $matches) === 1) {
+            $start_year = (int) $matches[1];
+            $start_month = (int) $matches[2];
+            $end_year = (int) $matches[3];
+            $end_month = (int) $matches[4];
+            if (
+                $start_month >= 1 && $start_month <= 12
+                && $end_month >= 1 && $end_month <= 12
+            ) {
+                $start = new \DateTime(sprintf('%04d-%02d-01', $start_year, $start_month));
+                $end = new \DateTime(sprintf('%04d-%02d-01', $end_year, $end_month));
+                $this->release_date_start = $start;
+                $this->release_date_end = $end->modify('last day of this month');
+                return;
+            }
+        }
+
+        if (preg_match('/^(\d{4})[.\/-](\d{1,2})$/', $release_date_string, $matches) === 1) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            if ($month >= 1 && $month <= 12) {
+                $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+                $this->release_date_start = $start;
+                $this->release_date_end = (clone $start)->modify('last day of this month');
+                return;
+            }
+        }
+
+        if (preg_match('/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/', $release_date_string, $matches) === 1) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+            if (checkdate($month, $day, $year)) {
+                $date = new \DateTime(sprintf('%04d-%02d-%02d', $year, $month, $day));
+                $this->release_date_start = $date;
+                $this->release_date_end = (clone $date);
+                return;
+            }
+        }
+
+        $this->release_date_start = null;
+        $this->release_date_end = null;
+    }
+
+    /**
+     * @return array{start: \DateTimeInterface, end: \DateTimeInterface}|null
+     */
+    private function parseWarekiRange(string $input): ?array
+    {
+        if (preg_match('/[\\-〜～–]/u', $input) !== 1) {
+            return null;
+        }
+
+        $parts = preg_split('/[\\-〜～–]/u', $input, 2);
+        if ($parts === false || count($parts) !== 2) {
+            return null;
+        }
+
+        $start = $this->parseWarekiDate($parts[0], null);
+        if ($start === null) {
+            return null;
+        }
+
+        $end = $this->parseWarekiDate($parts[1], $start['era'] ?? null);
+        if ($end === null) {
+            return null;
+        }
+
+        return [
+            'start' => $start['start'],
+            'end' => $end['end'],
+        ];
+    }
+
+    /**
+     * @return array{start: \DateTimeInterface, end: \DateTimeInterface, era: string}|null
+     */
+    private function parseWarekiDate(string $input, ?string $default_era): ?array
+    {
+        $input = trim($input);
+        if ($input === '') {
+            return null;
+        }
+
+        $era_map = [
+            'M' => 1868,
+            'T' => 1912,
+            'S' => 1926,
+            'H' => 1989,
+            'R' => 2019,
+            '明治' => 1868,
+            '大正' => 1912,
+            '昭和' => 1926,
+            '平成' => 1989,
+            '令和' => 2019,
+        ];
+
+        $era = null;
+        $year_raw = null;
+        $month_raw = null;
+        $day_raw = null;
+
+        if (preg_match('/^(明治|大正|昭和|平成|令和)\s*(元|\d{1,2})年(?:\s*(\d{1,2})月)?(?:\s*(\d{1,2})日)?$/u', $input, $matches) === 1) {
+            $era = $matches[1];
+            $year_raw = $matches[2];
+            $month_raw = $matches[3] ?? null;
+            $day_raw = $matches[4] ?? null;
+        } elseif (preg_match('/^([MTSHR])\s*(元|\d{1,2})(?:[.\/-](\d{1,2})(?:[.\/-](\d{1,2}))?)?$/i', $input, $matches) === 1) {
+            $era = strtoupper($matches[1]);
+            $year_raw = $matches[2];
+            $month_raw = $matches[3] ?? null;
+            $day_raw = $matches[4] ?? null;
+        }
+
+        if ($era === null) {
+            if ($default_era === null) {
+                return null;
+            }
+            $era = $default_era;
+            if (preg_match('/^(元|\d{1,2})(?:[.\/-](\d{1,2})(?:[.\/-](\d{1,2}))?)?$/', $input, $matches) !== 1) {
+                return null;
+            }
+            $year_raw = $matches[1];
+            $month_raw = $matches[2] ?? null;
+            $day_raw = $matches[3] ?? null;
+        }
+
+        if (!isset($era_map[$era])) {
+            return null;
+        }
+
+        $era_year = ($year_raw === '元') ? 1 : (int) $year_raw;
+        if ($era_year < 1) {
+            return null;
+        }
+
+        $year = $era_map[$era] + $era_year - 1;
+        $month = $month_raw !== null ? (int) $month_raw : null;
+        $day = $day_raw !== null ? (int) $day_raw : null;
+
+        if ($month !== null && ($month < 1 || $month > 12)) {
+            return null;
+        }
+
+        if ($day !== null) {
+            if ($month === null || !checkdate($month, $day, $year)) {
+                return null;
+            }
+            $date = new \DateTime(sprintf('%04d-%02d-%02d', $year, $month, $day));
+            return [
+                'start' => $date,
+                'end' => (clone $date),
+                'era' => $era,
+            ];
+        }
+
+        if ($month !== null) {
+            $start = new \DateTime(sprintf('%04d-%02d-01', $year, $month));
+            return [
+                'start' => $start,
+                'end' => (clone $start)->modify('last day of this month'),
+                'era' => $era,
+            ];
+        }
+
+        return [
+            'start' => new \DateTime(sprintf('%04d-01-01', $year)),
+            'end' => new \DateTime(sprintf('%04d-12-31', $year)),
+            'era' => $era,
+        ];
+    }
+
+    /**
+     * @param array{start: \DateTimeInterface, end: \DateTimeInterface} $range
+     */
+    private function applyReleaseDateRange(array $range): void
+    {
+        $this->release_date_start = $range['start'];
+        $this->release_date_end = $range['end'];
+    }
 }
