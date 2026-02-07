@@ -33,6 +33,15 @@
         #manifestationDetailModal .kv dd {
             margin-bottom: 0.35rem;
         }
+        #search_form .form-label {
+            font-size: 0.8rem;
+        }
+        #search_form .form-control,
+        #search_form .form-select,
+        #search_form textarea {
+            font-size: 0.85rem;
+            padding: 0.25rem 0.5rem;
+        }
     </style>
 {% endblock %}
 
@@ -72,11 +81,29 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">タイプ1（完全一致）</label>
-                                    <input type="text" name="type1" class="form-control" value="{{ search_params.type1|default('') }}" disabled>
+                                    {% if use_type1_code %}
+                                        <select name="type1" class="form-select" disabled>
+                                            <option value="">選択してください</option>
+                                            {% for label, value in type1_choices %}
+                                                <option value="{{ value }}" {{ value == search_params.type1|default('') ? 'selected' : '' }}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    {% else %}
+                                        <input type="text" name="type1" class="form-control" value="{{ search_params.type1|default('') }}" disabled>
+                                    {% endif %}
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label small fw-bold">タイプ2（完全一致）</label>
-                                    <input type="text" name="type2" class="form-control" value="{{ search_params.type2|default('') }}" disabled>
+                                    {% if use_type2_code %}
+                                        <select name="type2" class="form-select" disabled>
+                                            <option value="">選択してください</option>
+                                            {% for label, value in type2_choices %}
+                                                <option value="{{ value }}" {{ value == search_params.type2|default('') ? 'selected' : '' }}>{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    {% else %}
+                                        <input type="text" name="type2" class="form-control" value="{{ search_params.type2|default('') }}" disabled>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -503,9 +530,16 @@
                         method: 'GET',
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     })
-                        .then(response => (viewMode === 'grid' ? response.json() : response.text()))
-                        .then(data => {
+                        .then(response => {
+                            const totalCount = response.headers.get('X-Result-Count');
+                            const payload = viewMode === 'grid' ? response.json() : response.text();
+                            return payload.then(data => ({ data, totalCount }));
+                        })
+                        .then(({ data, totalCount }) => {
                             loading.classList.add('d-none');
+                            if (totalCount !== null) {
+                                document.getElementById('result-count').textContent = `検索結果: ${totalCount} 件`;
+                            }
                             if (viewMode === 'grid') {
                                 renderGrid(data);
                                 return;

@@ -42,46 +42,46 @@
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav">
                         <li class="nav-item">
-                            <a class="nav-link {% if app.request.attributes.get('_route') == 'app_home' %}active{% endif %}" href="{{ path('app_home') }}">ホーム</a>
+                            <a class="nav-link {% if app.request.attributes.get('_route') == 'app_home' %}active{% endif %}" href="{{ path('app_home') }}">{{ 'Menu.Home' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_manifestation_index') }}">書誌一覧</a>
+                            <a class="nav-link" href="{{ path('app_manifestation_index') }}">{{ 'Menu.ManifestationIndex' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_manifestation_new') }}">新規登録</a>
+                            <a class="nav-link" href="{{ path('app_manifestation_new') }}">{{ 'Menu.ManifestationNew' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_manifestation_import_isbn') }}">ISBNからインポート</a>
+                            <a class="nav-link" href="{{ path('app_manifestation_import_isbn') }}">{{ 'Menu.ManifestationImportIsbn' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_import_amazon_orders') }}">Amazon購入履歴インポート</a>
+                            <a class="nav-link" href="{{ path('app_import_amazon_orders') }}">{{ 'Menu.AmazonImport' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="{{ path('app_manifestation_file_import') }}">インポート</a>
+                            <a class="nav-link active" href="{{ path('app_manifestation_file_import') }}">{{ 'Menu.ManifestationFileImport' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="{{ path('app_manifestation_file_export') }}">エクスポート</a>
+                            <a class="nav-link active" href="{{ path('app_manifestation_file_export') }}">{{ 'Menu.ManifestationFileExport' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="{{ path('app_inventory') }}">棚卸</a>
+                            <a class="nav-link active" href="{{ path('app_inventory') }}">{{ 'Menu.Inventory' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_circulation_index') }}">予約・貸出・返却</a>
+                            <a class="nav-link" href="{{ path('app_circulation_index') }}">{{ 'Menu.CirculationIndex' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_circulation_reserve_page') }}">予約</a>
+                            <a class="nav-link" href="{{ path('app_circulation_reserve_page') }}">{{ 'Menu.CirculationReserve' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_circulation_checkout_page') }}">貸出</a>
+                            <a class="nav-link" href="{{ path('app_circulation_checkout_page') }}">{{ 'Menu.CirculationCheckout' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_circulation_checkin_page') }}">返却</a>
+                            <a class="nav-link" href="{{ path('app_circulation_checkin_page') }}">{{ 'Menu.CirculationCheckin' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_member_index') }}">利用者</a>
+                            <a class="nav-link" href="{{ path('app_member_index') }}">{{ 'Menu.MemberIndex' | trans }}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ path('app_settings_code') }}">設定</a>
+                            <a class="nav-link" href="{{ path('app_settings_code') }}">{{ 'Menu.Settings' | trans }}</a>
                         </li>
 
 

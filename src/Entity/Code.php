@@ -25,6 +25,9 @@ class Code
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $displayname = null;
 
+    #[ORM\Column]
+    private int $display_order = 0;
+
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $created_at = null;
 
@@ -72,6 +75,17 @@ class Code
     public function setDisplayname(?string $displayname): static
     {
         $this->displayname = $displayname;
+        return $this;
+    }
+
+    public function getDisplayOrder(): int
+    {
+        return $this->display_order;
+    }
+
+    public function setDisplayOrder(int $display_order): static
+    {
+        $this->display_order = $display_order;
         return $this;
     }
 

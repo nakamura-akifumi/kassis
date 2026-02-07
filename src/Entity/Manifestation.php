@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Validator\ManifestationStatus;
+use App\Validator\ManifestationTypeCode;
 use App\Repository\ManifestationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -57,21 +58,27 @@ class Manifestation
     private ?string $record_source = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ManifestationTypeCode(codeType: 'manifestation_type1', flagParam: 'app.manifestation.type1.use_code')]
     private ?string $type1 = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ManifestationTypeCode(codeType: 'manifestation_type2', flagParam: 'app.manifestation.type2.use_code')]
     private ?string $type2 = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ManifestationTypeCode(codeType: 'manifestation_type3', flagParam: 'app.manifestation.type3.use_code')]
     private ?string $type3 = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ManifestationTypeCode(codeType: 'manifestation_type4', flagParam: 'app.manifestation.type4.use_code')]
     private ?string $type4 = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ManifestationTypeCode(codeType: 'manifestation_location1', flagParam: 'app.manifestation.location1.use_code')]
     private ?string $location1 = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[ManifestationTypeCode(codeType: 'manifestation_location2', flagParam: 'app.manifestation.location2.use_code')]
     private ?string $location2 = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -600,6 +607,30 @@ class Manifestation
         $wareki_date = $this->parseWarekiDate($release_date_string, null);
         if ($wareki_date !== null) {
             $this->applyReleaseDateRange($wareki_date);
+            return;
+        }
+
+        if (preg_match('/^c(\d{4})-(\d{4})$/', $release_date_string, $matches) === 1) {
+            $start_year = (int) $matches[1];
+            $end_year = (int) $matches[2];
+            if ($start_year > 0 && $end_year > 0) {
+                $this->release_date_start = new \DateTime(sprintf('%04d-01-01', $start_year));
+                $this->release_date_end = new \DateTime(sprintf('%04d-12-31', $end_year));
+                return;
+            }
+        }
+
+        if (preg_match('/^c(\d{4})-$/', $release_date_string, $matches) === 1) {
+            $year = (int) $matches[1];
+            $this->release_date_start = new \DateTime(sprintf('%04d-01-01', $year));
+            $this->release_date_end = new \DateTime(sprintf('%04d-12-31', $year));
+            return;
+        }
+
+        if (preg_match('/^c(\d{4})$/', $release_date_string, $matches) === 1) {
+            $year = (int) $matches[1];
+            $this->release_date_start = new \DateTime(sprintf('%04d-01-01', $year));
+            $this->release_date_end = new \DateTime(sprintf('%04d-12-31', $year));
             return;
         }
 

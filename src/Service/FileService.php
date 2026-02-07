@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\Manifestation;
+use App\Repository\CodeRepository;
 use DateTime;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,6 +17,8 @@ use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Throwable;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -30,6 +33,9 @@ class FileService
         private LoggerInterface        $logger,
         private NumberingService $numberingService,
         private ManifestationStatusResolver $statusResolver,
+        private ValidatorInterface $validator,
+        private CodeRepository $codeRepository,
+        private ParameterBagInterface $params,
     ) {
     }
 
@@ -72,6 +78,16 @@ class FileService
                     // DateTime などのオブジェクト処理
                     if ($value instanceof DateTimeInterface) {
                         $value = $value->format('Y-m-d H:i:s');
+                    }
+
+                    if ($key === 'type1') {
+                        $value = $this->resolveTypeDisplayName($value, 'manifestation_type1', 'app.manifestation.type1.export_display_name');
+                    } elseif ($key === 'type2') {
+                        $value = $this->resolveTypeDisplayName($value, 'manifestation_type2', 'app.manifestation.type2.export_display_name');
+                    } elseif ($key === 'type3') {
+                        $value = $this->resolveTypeDisplayName($value, 'manifestation_type3', 'app.manifestation.type3.export_display_name');
+                    } elseif ($key === 'type4') {
+                        $value = $this->resolveTypeDisplayName($value, 'manifestation_type4', 'app.manifestation.type4.export_display_name');
                     }
 
                     $sheet->setCellValue([$colIndex, $row], $value);
@@ -120,6 +136,33 @@ class FileService
             $hash[$val] = null;
         }
         return $hash;
+    }
+
+    private function resolveTypeDisplayName(mixed $value, string $codeType, string $flagParam): mixed
+    {
+        if (!$this->params->has($flagParam) || !(bool) $this->params->get($flagParam)) {
+            return $value;
+        }
+
+        $identifier = is_string($value) ? trim($value) : null;
+        if ($identifier === null || $identifier === '') {
+            return $value;
+        }
+
+        $code = $this->codeRepository->findOneBy([
+            'type' => $codeType,
+            'identifier' => $identifier,
+        ]);
+        if ($code === null) {
+            return $value;
+        }
+
+        $displayName = $code->getDisplayname();
+        if ($displayName === null || trim($displayName) === '') {
+            return $value;
+        }
+
+        return $displayName;
     }
     /**
      * /file/export のフォーマット（ID, タイトル, 著者, 出版社, 出版年, ISBN ...）を取り込む。
@@ -307,6 +350,42 @@ class FileService
                     }
                     if (isset($cellvals['price_currency'])) {
                         $manifestation->setPriceCurrency($cellvals['price_currency']);
+                    }
+
+                    $type1Violations = $this->validator->validateProperty($manifestation, 'type1');
+                    $type2Violations = $this->validator->validateProperty($manifestation, 'type2');
+                    $type3Violations = $this->validator->validateProperty($manifestation, 'type3');
+                    $type4Violations = $this->validator->validateProperty($manifestation, 'type4');
+                    $location1Violations = $this->validator->validateProperty($manifestation, 'location1');
+                    $location2Violations = $this->validator->validateProperty($manifestation, 'location2');
+                    if (
+                        count($type1Violations) > 0
+                        || count($type2Violations) > 0
+                        || count($type3Violations) > 0
+                        || count($type4Violations) > 0
+                        || count($location1Violations) > 0
+                        || count($location2Violations) > 0
+                    ) {
+                        $messages = [];
+                        foreach ($type1Violations as $violation) {
+                            $messages[] = $violation->getMessage();
+                        }
+                        foreach ($type2Violations as $violation) {
+                            $messages[] = $violation->getMessage();
+                        }
+                        foreach ($type3Violations as $violation) {
+                            $messages[] = $violation->getMessage();
+                        }
+                        foreach ($type4Violations as $violation) {
+                            $messages[] = $violation->getMessage();
+                        }
+                        foreach ($location1Violations as $violation) {
+                            $messages[] = $violation->getMessage();
+                        }
+                        foreach ($location2Violations as $violation) {
+                            $messages[] = $violation->getMessage();
+                        }
+                        throw new RuntimeException(implode(' ', $messages));
                     }
 
                     $this->entityManager->persist($manifestation);

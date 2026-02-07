@@ -174,11 +174,6 @@
             background-color: #6f42c1;
         }
 
-        .price-info {
-            font-weight: 600;
-            color: #e74c3c;
-        }
-
         .attachment-section {
             margin-top: 2rem;
             padding-top: 1.5rem;
@@ -307,7 +302,7 @@
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Price' | trans }}</th>
-                            <td class="price-info">{{ manifestation.formattedPrice }}</td>
+                            <td>{{ manifestation.formattedPrice }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.PriceCurrency' | trans }}</th>
@@ -315,19 +310,19 @@
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Type1' | trans }}</th>
-                            <td>{{ manifestation.type1 }}</td>
+                            <td>{{ type1Display }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Type2' | trans }}</th>
-                            <td>{{ manifestation.type2 }}</td>
+                            <td>{{ type2Display }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Type3' | trans }}</th>
-                            <td>{{ manifestation.type3 }}</td>
+                            <td>{{ type3Display }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Type4' | trans }}</th>
-                            <td>{{ manifestation.type4 }}</td>
+                            <td>{{ type4Display }}</td>
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Location1' | trans }}</th>
@@ -384,7 +379,11 @@
                                         </div>
                                         <div class="attachment-info">
                                             <a href="{{ asset(attachment.filePath) }}" target="_blank" class="attachment-name">
-                                                {{ attachment.fileName }}
+                                                {% if attachment.sourceUrl %}
+                                                    {{ attachment.sourceUrl }} ({{ attachment.fileName }})
+                                                {% else %}
+                                                    {{ attachment.fileName }}
+                                                {% endif %}
                                             </a>
                                             <div class="attachment-meta">
                                                 {{ (attachment.fileSize / 1024)|number_format(1) }} KB |
@@ -458,13 +457,19 @@
                                         {% if 'image' in attachment.mimeType or 'pdf' in attachment.mimeType %}
                                             <div class="attachment-thumbnail-item">
                                                 {% if 'image' in attachment.mimeType %}
-                                                    <a href="{{ asset(attachment.filePath) }}" target="_blank" title="{{ attachment.fileName }}">
+                                                    <a href="{{ asset(attachment.filePath) }}" target="_blank" title="{{ attachment.sourceUrl ? attachment.sourceUrl ~ ' (' ~ attachment.fileName ~ ')' : attachment.fileName }}">
                                                         <img src="{{ asset(attachment.filePath) }}" alt="{{ attachment.fileName }}">
                                                     </a>
                                                 {% elseif 'pdf' in attachment.mimeType %}
                                                     <a href="{{ asset(attachment.filePath) }}" target="_blank" class="pdf-link">
                                                         <i class="fas fa-file-pdf fa-3x"></i>
-                                                        <div class="small mt-2 text-dark">{{ attachment.fileName }}</div>
+                                                        <div class="small mt-2 text-dark">
+                                                            {% if attachment.sourceUrl %}
+                                                                {{ attachment.sourceUrl }} ({{ attachment.fileName }})
+                                                            {% else %}
+                                                                {{ attachment.fileName }}
+                                                            {% endif %}
+                                                        </div>
                                                         <div class="badge bg-danger mt-1">PDFを開く</div>
                                                     </a>
                                                 {% endif %}

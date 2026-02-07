@@ -22,6 +22,7 @@ final class Version20260110120000 extends AbstractMigration
                 identifier VARCHAR(255) NOT NULL,
                 value VARCHAR(32) NOT NULL,
                 displayname VARCHAR(255) DEFAULT NULL,
+                display_order INT NOT NULL DEFAULT 0,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
                 PRIMARY KEY(type, identifier)

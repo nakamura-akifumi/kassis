@@ -6,6 +6,7 @@ use App\Entity\Manifestation;
 use App\Entity\ManifestationAttachment;
 use App\Form\AttachmentUploadFormType;
 use App\Form\ManifestationType;
+use App\Repository\CodeRepository;
 use App\Repository\ManifestationRepository;
 use App\Service\ManifestationSearchQuery;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,6 +27,7 @@ final class ManifestationController extends AbstractController
     {
         $searchQuery = ManifestationSearchQuery::fromRequest($request->query->all());
         $manifestations = $manifestationRepository->searchByQuery($searchQuery);
+        $totalCount = count($manifestations);
         $viewMode = $request->query->get('view_mode', 'list') ?: 'list';
         $limits = (array) $params->get('app.manifestation.search_limits');
 
@@ -44,19 +46,23 @@ final class ManifestationController extends AbstractController
                     'purchaseDate' => $m->getPurchaseDate()?->format('Y-m-d'),
                 ];
             }
-            return $this->json($data);
+            $response = $this->json($data);
+            $response->headers->set('X-Result-Count', (string) $totalCount);
+            return $response;
         }
 
-        return $this->render('manifestation/search.html.twig', [
+        $response = $this->render('manifestation/search.html.twig', [
             'manifestations' => $manifestations,
             'search_params' => $request->query->all(),
             'view_mode' => $viewMode,
             'display_limits' => $limits,
         ]);
+        $response->headers->set('X-Result-Count', (string) $totalCount);
+        return $response;
     }
 
     #[Route('/manifestation', name: 'app_manifestation_index', methods: ['GET'])]
-    public function index(Request $request, ManifestationRepository $manifestationRepository, ParameterBagInterface $params): Response
+    public function index(Request $request, ManifestationRepository $manifestationRepository, ParameterBagInterface $params, CodeRepository $codeRepository): Response
     {
         $searchQuery = ManifestationSearchQuery::fromRequest($request->query->all());
         $manifestations = $manifestationRepository->searchByQuery($searchQuery);
@@ -65,13 +71,39 @@ final class ManifestationController extends AbstractController
             $viewMode = 'list';
         }
         $limits = (array) $params->get('app.manifestation.search_limits');
+        $useType1Code = $params->has('app.manifestation.type1.use_code') && (bool) $params->get('app.manifestation.type1.use_code');
+        $useType2Code = $params->has('app.manifestation.type2.use_code') && (bool) $params->get('app.manifestation.type2.use_code');
+        $type1Choices = $useType1Code ? $this->getCodeChoices($codeRepository, 'manifestation_type1') : [];
+        $type2Choices = $useType2Code ? $this->getCodeChoices($codeRepository, 'manifestation_type2') : [];
 
         return $this->render('manifestation/index.html.twig', [
             'manifestations' => $manifestations,
             'search_params' => $request->query->all(),
             'view_mode' => $viewMode,
             'display_limits' => $limits,
+            'use_type1_code' => $useType1Code,
+            'use_type2_code' => $useType2Code,
+            'type1_choices' => $type1Choices,
+            'type2_choices' => $type2Choices,
         ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getCodeChoices(CodeRepository $codeRepository, string $type): array
+    {
+        $choices = [];
+        $codes = $codeRepository->findBy(['type' => $type], ['display_order' => 'ASC', 'identifier' => 'ASC']);
+        foreach ($codes as $code) {
+            $label = $code->getDisplayname();
+            if ($label === null || trim($label) === '') {
+                $label = $code->getIdentifier();
+            }
+            $choices[$label] = $code->getIdentifier();
+        }
+
+        return $choices;
     }
 
     #[Route('/new', name: 'app_manifestation_new', methods: ['GET', 'POST'])]
@@ -95,10 +127,70 @@ final class ManifestationController extends AbstractController
     }
 
     #[Route('/{id}', name: 'app_manifestation_show', methods: ['GET', 'POST'])]
-    public function show(Request $request, Manifestation $manifestation, EntityManagerInterface $entityManager, SluggerInterface $slugger): Response
+    public function show(Request $request, Manifestation $manifestation, EntityManagerInterface $entityManager, SluggerInterface $slugger, CodeRepository $codeRepository, ParameterBagInterface $params): Response
     {
         $form = $this->createForm(AttachmentUploadFormType::class);
         $form->handleRequest($request);
+
+        $type1Display = $manifestation->getType1();
+        if ($params->has('app.manifestation.type1.use_code') && (bool) $params->get('app.manifestation.type1.use_code')) {
+            $type1Identifier = is_string($type1Display) ? trim($type1Display) : null;
+            if ($type1Identifier !== null && $type1Identifier !== '') {
+                $code = $codeRepository->findOneBy([
+                    'type' => 'manifestation_type1',
+                    'identifier' => $type1Identifier,
+                ]);
+                $displayName = $code?->getDisplayname();
+                if ($displayName !== null && trim($displayName) !== '') {
+                    $type1Display = $displayName;
+                }
+            }
+        }
+
+        $type2Display = $manifestation->getType2();
+        if ($params->has('app.manifestation.type2.use_code') && (bool) $params->get('app.manifestation.type2.use_code')) {
+            $type2Identifier = is_string($type2Display) ? trim($type2Display) : null;
+            if ($type2Identifier !== null && $type2Identifier !== '') {
+                $code = $codeRepository->findOneBy([
+                    'type' => 'manifestation_type2',
+                    'identifier' => $type2Identifier,
+                ]);
+                $displayName = $code?->getDisplayname();
+                if ($displayName !== null && trim($displayName) !== '') {
+                    $type2Display = $displayName;
+                }
+            }
+        }
+
+        $type3Display = $manifestation->getType3();
+        if ($params->has('app.manifestation.type3.use_code') && (bool) $params->get('app.manifestation.type3.use_code')) {
+            $type3Identifier = is_string($type3Display) ? trim($type3Display) : null;
+            if ($type3Identifier !== null && $type3Identifier !== '') {
+                $code = $codeRepository->findOneBy([
+                    'type' => 'manifestation_type3',
+                    'identifier' => $type3Identifier,
+                ]);
+                $displayName = $code?->getDisplayname();
+                if ($displayName !== null && trim($displayName) !== '') {
+                    $type3Display = $displayName;
+                }
+            }
+        }
+
+        $type4Display = $manifestation->getType4();
+        if ($params->has('app.manifestation.type4.use_code') && (bool) $params->get('app.manifestation.type4.use_code')) {
+            $type4Identifier = is_string($type4Display) ? trim($type4Display) : null;
+            if ($type4Identifier !== null && $type4Identifier !== '') {
+                $code = $codeRepository->findOneBy([
+                    'type' => 'manifestation_type4',
+                    'identifier' => $type4Identifier,
+                ]);
+                $displayName = $code?->getDisplayname();
+                if ($displayName !== null && trim($displayName) !== '') {
+                    $type4Display = $displayName;
+                }
+            }
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             $attachmentFile = $form->get('attachment')->getData();
@@ -140,6 +232,10 @@ final class ManifestationController extends AbstractController
         return $this->render('manifestation/show.html.twig', [
             'manifestation' => $manifestation,
             'attachment_form' => $form->createView(),
+            'type1Display' => $type1Display,
+            'type2Display' => $type2Display,
+            'type3Display' => $type3Display,
+            'type4Display' => $type4Display,
         ]);
     }
 

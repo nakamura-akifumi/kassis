@@ -10,6 +10,7 @@
             <p class="text-muted small mb-0">codeテーブルの内容を保守します。</p>
         </div>
         <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_code_file') }}">インポート/エクスポート</a>
             <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_home') }}">ホームへ</a>
         </div>
     </div>
@@ -42,6 +43,10 @@
                     <label class="form-label small mb-1" for="code-displayname">表示名</label>
                     <input type="text" class="form-control form-control-sm" id="code-displayname" name="displayname">
                 </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1" for="code-display-order">表示順</label>
+                    <input type="number" class="form-control form-control-sm" id="code-display-order" name="display_order" value="0">
+                </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary btn-sm w-100">追加</button>
                 </div>
@@ -64,6 +69,7 @@
                     <input type="hidden" name="identifier">
                     <input type="hidden" name="value">
                     <input type="hidden" name="displayname">
+                    <input type="hidden" name="display_order">
                 </form>
                 <form id="code-delete-form" method="post" action="{{ path('app_settings_code_delete') }}" class="d-none">
                     <input type="hidden" name="_token" value="{{ csrf_token('code_delete') }}">
@@ -92,10 +98,11 @@
         const header = [
             { field: '__update', caption: '', width: 44, style: { textAlign: 'center', bgColor: '#eef3ff', color: '#0d6efd' } },
             { field: '__delete', caption: '', width: 44, style: { textAlign: 'center', bgColor: '#fff0f0', color: '#dc3545' } },
-            { field: 'type', caption: '種別', width: 140 },
+            { field: 'type', caption: '種別', width: 200 },
             { field: 'identifier', caption: '識別子', width: 200 },
             { field: 'value', caption: '値', width: 160 },
             { field: 'displayname', caption: '表示名', width: 220 },
+            { field: 'displayOrder', caption: '表示順', width: 80 },
             { field: 'updatedAt', caption: '更新日時', width: 140 },
         ];
 
@@ -119,6 +126,7 @@
             if (!updateForm) return;
             const currentValue = record.value ?? '';
             const currentDisplayname = record.displayname ?? '';
+            const currentDisplayOrder = record.displayOrder ?? 0;
             const currentType = record.type ?? '';
             if (typeOptions.length > 0 && !typeOptions.includes(currentType)) {
                 alert('種別が不正です。');
@@ -136,11 +144,14 @@
                 }
                 const newDisplayname = window.prompt('表示名を入力してください（空欄可）', currentDisplayname ?? '');
                 if (newDisplayname === null) return;
+                const newDisplayOrder = window.prompt('表示順を入力してください', String(currentDisplayOrder));
+                if (newDisplayOrder === null) return;
 
                 updateForm.querySelector('input[name="type"]').value = record.type || '';
                 updateForm.querySelector('input[name="identifier"]').value = record.identifier || '';
                 updateForm.querySelector('input[name="value"]').value = String(newValue);
                 updateForm.querySelector('input[name="displayname"]').value = String(newDisplayname);
+                updateForm.querySelector('input[name="display_order"]').value = String(newDisplayOrder);
                 updateForm.submit();
             }
 

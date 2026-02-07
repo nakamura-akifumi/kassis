@@ -1,6 +1,21 @@
 SystemTitle:
   HtmlHeader: "kassisV2"
   NavbarBrandTitle: "kassisV2"
+Menu:
+  Home: "ホーム"
+  ManifestationIndex: "書誌一覧"
+  ManifestationNew: "新規登録"
+  ManifestationImportIsbn: "ISBNからインポート"
+  AmazonImport: "Amazon購入履歴インポート"
+  ManifestationFileImport: "インポート"
+  ManifestationFileExport: "エクスポート"
+  Inventory: "棚卸"
+  CirculationIndex: "予約・貸出・返却"
+  CirculationReserve: "予約"
+  CirculationCheckout: "貸出"
+  CirculationCheckin: "返却"
+  MemberIndex: "利用者"
+  Settings: "設定"
 Screen:
   Manifestation:
     Index: "資料一覧"

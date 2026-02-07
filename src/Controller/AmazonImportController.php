@@ -34,6 +34,7 @@ class AmazonImportController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $zipFile = $form->get('zipFile')->getData();
+            $kindleFile = $form->get('kindleFile')->getData();
             $onlyIsbnAsin = (bool) $form->get('onlyIsbnAsin')->getData();
             
             if ($zipFile) {
@@ -41,11 +42,12 @@ class AmazonImportController extends AbstractController
                     'filename' => $zipFile->getClientOriginalName(),
                     'size' => $zipFile->getSize(),
                     'mimeType' => $zipFile->getMimeType(),
+                    'kindleFilename' => $kindleFile?->getClientOriginalName(),
                     'onlyIsbnAsin' => $onlyIsbnAsin,
                 ]);
                 
                 try {
-                    $result = $amazonImportService->processFile($zipFile, $onlyIsbnAsin);
+                    $result = $amazonImportService->processFile($zipFile, $onlyIsbnAsin, $kindleFile);
                     
                     $this->logger->info('インポート処理が完了しました', [
                         'success' => $result['success'],

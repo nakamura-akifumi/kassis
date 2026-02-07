@@ -35,6 +35,27 @@ class AmazonImportFormType extends AbstractType
                 ],
                 'help' => 'Amazonからダウンロードしたご注文履歴ファイル（Your Orders.zip）をアップロードしてください'
             ])
+            ->add('kindleFile', FileType::class, [
+                'label' => 'Kindle購入履歴ファイル (kindle.json)',
+                'mapped' => false,
+                'required' => false,
+                'constraints' => [
+                    new File([
+                        'maxSize' => '50M',
+                        'mimeTypes' => [
+                            'application/json',
+                            'text/json',
+                            'text/plain',
+                        ],
+                        'mimeTypesMessage' => 'JSONファイルをアップロードしてください',
+                    ])
+                ],
+                'attr' => [
+                    'class' => 'form-control form-control-sm',
+                    'accept' => '.json'
+                ],
+                'help' => 'Kindle bookshelf exporterのkindle.jsonをアップロードできます（任意）'
+            ])
             ->add('onlyIsbnAsin', CheckboxType::class, [
                 'label' => 'ASINがISBNとして妥当でない場合は取り込まない（ISBN-10/ISBN-13）',
                 'mapped' => false,

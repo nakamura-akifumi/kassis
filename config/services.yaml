@@ -10,6 +10,16 @@ parameters:
     app.default_display_mode: grid
     app.manifestation.identifier_rule: random # uuidv7,numbering,isbn+random(4)
     app.manifestation.identifier_format: '%010d'
+    app.manifestation.type1.use_code: true
+    app.manifestation.type2.use_code: true
+    app.manifestation.type3.use_code: true
+    app.manifestation.type4.use_code: true
+    app.manifestation.location1.use_code: true
+    app.manifestation.location2.use_code: true
+    app.manifestation.type1.export_display_name: true
+    app.manifestation.type2.export_display_name: true
+    app.manifestation.type3.export_display_name: true
+    app.manifestation.type4.export_display_name: true
     app.manifestation.search_limits:
         list: 100
         panel: 20
@@ -17,10 +27,11 @@ parameters:
         map: 100
     app.member.expiry_days: 1095
     app.checkout.due_days: 14
-    app.code.types: ['manifestation_type1', 'checkout_max_loans', 'checkout_max_renewals', 'checkout_due_date']
+    app.code.types: ['manifestation_type1', 'manifestation_type2', 'manifestation_type3', 'manifestation_type4', 'manifestation_location1','manifestation_location2','checkout_max_loans', 'checkout_max_renewals', 'checkout_due_date']
     app.member.group1: ['standard', 'vip', 'guest']
     app.member.status: ['active', 'inactive', 'expired']
     app.member.role: ['member','staff','admin']
+
 
 services:
     # default configuration for services in *this* file

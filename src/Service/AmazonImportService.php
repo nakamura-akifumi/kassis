@@ -3,9 +3,11 @@
 namespace App\Service;
 
 use App\Entity\Manifestation;
+use App\Entity\ManifestationAttachment;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -18,6 +20,7 @@ class AmazonImportService
     private LoggerInterface $logger;
     protected NdlImportService $ndlImportService;
     private bool $useNdl;
+    private SluggerInterface $slugger;
 
 
     public function __construct(
@@ -26,7 +29,8 @@ class AmazonImportService
         ManagerRegistry $managerRegistry,
         LoggerInterface $logger,
         string $projectDir,
-        bool $useNdl
+        bool $useNdl,
+        SluggerInterface $slugger
     ) {
         $this->entityManager = $entityManager;
         $this->managerRegistry = $managerRegistry;
@@ -34,9 +38,10 @@ class AmazonImportService
         $this->projectDir = $projectDir;
         $this->ndlImportService = $ndlImportService;
         $this->useNdl = $useNdl;
+        $this->slugger = $slugger;
     }
 
-    public function processFile(UploadedFile $zipFile, bool $onlyIsbnAsin = false): array
+    public function processFile(UploadedFile $zipFile, bool $onlyIsbnAsin = false, ?UploadedFile $kindleFile = null): array
     {
         $result = [
             'success' => 0,
@@ -49,6 +54,7 @@ class AmazonImportService
             'filename' => $zipFile->getClientOriginalName(),
             'size' => $zipFile->getSize(),
             'onlyIsbnAsin' => $onlyIsbnAsin,
+            'kindleFilename' => $kindleFile?->getClientOriginalName(),
         ]);
 
         // 一時ディレクトリを作成
@@ -83,6 +89,8 @@ class AmazonImportService
 
                 $this->logger->info('CSVファイルが見つかりました', ['files' => $csvFiles]);
 
+                $kindleItemsByAsin = $this->loadKindleItems($kindleFile, $result);
+
                 // すべてのCSVファイルを処理する
                 foreach ($csvFiles as $csvFile) {
                     $this->logger->info('CSVファイルの処理を開始します', ['file' => $csvFile]);
@@ -91,7 +99,7 @@ class AmazonImportService
                         'skipped' => 0,
                         'errors' => 0,
                         'errorMessages' => []
-                    ], $onlyIsbnAsin);
+                    ], $onlyIsbnAsin, $kindleItemsByAsin);
 
                     // 結果を集計する
                     $result['success'] += $fileResult['success'];
@@ -175,7 +183,7 @@ class AmazonImportService
     }
 
 
-    private function processAmazonCsv(string $csvPath, array $result, bool $onlyIsbnAsin): array
+    private function processAmazonCsv(string $csvPath, array $result, bool $onlyIsbnAsin, array $kindleItemsByAsin): array
     {
         $handle = fopen($csvPath, 'rb');
         if ($handle === false) {
@@ -307,6 +315,10 @@ class AmazonImportService
                     $identifier = $data[$asinIndex];
                     $externalIdentifier3 = $data[$asinIndex];
                 }
+                $kindleItem = null;
+                if ($externalIdentifier3 !== null && isset($kindleItemsByAsin[$externalIdentifier3])) {
+                    $kindleItem = $kindleItemsByAsin[$externalIdentifier3];
+                }
 
                 // ISBN
                 $externalIdentifier1 = null;
@@ -320,7 +332,7 @@ class AmazonImportService
                     }
                 }
 
-                if ($onlyIsbnAsin && $externalIdentifier1 === null) {
+                if ($onlyIsbnAsin && $externalIdentifier1 === null && $kindleItem === null) {
                     $this->logger->debug('ASINがISBNとして妥当ではないためスキップします', [
                         'row' => $rowCount,
                         'asin' => $externalIdentifier3,
@@ -414,6 +426,9 @@ class AmazonImportService
                 if ($materialType === 'Retail' && $manifestation->getType1() === null) {
                     $manifestation->setType1("リテイル");
                 }
+                if ($kindleItem !== null) {
+                    $manifestation->setType2("kindle");
+                }
 
                 // データベースに保存
                 $this->entityManager->persist($manifestation);
@@ -428,6 +443,10 @@ class AmazonImportService
                     'identifier' => $identifier
                 ]);
                 
+                if ($kindleItem !== null && !empty($kindleItem['productImage'])) {
+                    $this->createAttachmentFromImageUrl($manifestation, $kindleItem['productImage']);
+                }
+
                 $result['success']++;
 
                 // メモリ節約のため定期的にクリア
@@ -482,5 +501,143 @@ class AmazonImportService
             }
             rmdir($dir);
         }
+    }
+
+    private function loadKindleItems(?UploadedFile $kindleFile, array &$result): array
+    {
+        if ($kindleFile === null) {
+            return [];
+        }
+
+        $kindlePath = $kindleFile->getPathname();
+        $contents = @file_get_contents($kindlePath);
+        if ($contents === false) {
+            $this->logger->error('kindle.jsonの読み込みに失敗しました', ['path' => $kindlePath]);
+            $result['errors']++;
+            $result['errorMessages'][] = 'kindle.jsonの読み込みに失敗しました。';
+            return [];
+        }
+
+        $decoded = json_decode($contents, true);
+        if (!is_array($decoded)) {
+            $this->logger->error('kindle.jsonの形式が正しくありません', [
+                'path' => $kindlePath,
+                'error' => json_last_error_msg(),
+            ]);
+            $result['errors']++;
+            $result['errorMessages'][] = 'kindle.jsonの形式が正しくありません。';
+            return [];
+        }
+
+        $itemsByAsin = [];
+        foreach ($decoded as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $asin = isset($item['asin']) ? trim((string) $item['asin']) : '';
+            if ($asin === '') {
+                continue;
+            }
+            if (!isset($itemsByAsin[$asin])) {
+                $itemsByAsin[$asin] = $item;
+            }
+        }
+
+        $this->logger->info('kindle.jsonの読み込みが完了しました', [
+            'items' => count($itemsByAsin),
+        ]);
+
+        return $itemsByAsin;
+    }
+
+    private function createAttachmentFromImageUrl(Manifestation $manifestation, string $imageUrl): void
+    {
+        try {
+            $httpClient = HttpClient::create();
+            $response = $httpClient->request('GET', $imageUrl);
+            $statusCode = $response->getStatusCode();
+            if ($statusCode !== 200) {
+                $this->logger->warning('画像取得に失敗しました', [
+                    'status' => $statusCode,
+                    'url' => $imageUrl,
+                ]);
+                return;
+            }
+
+            $headers = $response->getHeaders(false);
+            $contentType = $headers['content-type'][0] ?? null;
+            $content = $response->getContent(false);
+            if ($content === '') {
+                $this->logger->warning('画像データが空でした', ['url' => $imageUrl]);
+                return;
+            }
+
+            $extension = $this->guessImageExtension($contentType, $imageUrl);
+            $baseTitle = $manifestation->getTitle() ?: 'kindle-image';
+            $safeFilename = $this->slugger->slug($baseTitle)->lower();
+            if ($safeFilename === '') {
+                $safeFilename = 'kindle-image';
+            }
+            $newFilename = $safeFilename . '-' . Uuid::v7()->toHex() . '.' . $extension;
+
+            $uploadDir = $this->projectDir . '/public/uploads/attachments';
+            if (!is_dir($uploadDir) && !mkdir($uploadDir, 0777, true) && !is_dir($uploadDir)) {
+                $this->logger->error('添付ファイルディレクトリの作成に失敗しました', ['dir' => $uploadDir]);
+                return;
+            }
+
+            $filePath = $uploadDir . '/' . $newFilename;
+            if (@file_put_contents($filePath, $content) === false) {
+                $this->logger->error('画像の保存に失敗しました', ['path' => $filePath]);
+                return;
+            }
+
+            $originalName = basename((string) parse_url($imageUrl, PHP_URL_PATH));
+            if ($originalName === '') {
+                $originalName = $newFilename;
+            }
+
+            $attachment = new ManifestationAttachment();
+            $attachment->setManifestation($manifestation);
+            $attachment->setFileName($originalName);
+            $attachment->setFilePath('uploads/attachments/' . $newFilename);
+            $attachment->setFileSize(strlen($content));
+            $attachment->setMimeType($contentType);
+            $attachment->setSourceUrl($imageUrl);
+
+            $this->entityManager->persist($attachment);
+            $this->entityManager->flush();
+        } catch (\Throwable $e) {
+            $this->logger->warning('画像添付の作成中にエラーが発生しました', [
+                'error' => $e->getMessage(),
+                'url' => $imageUrl,
+            ]);
+        }
+    }
+
+    private function guessImageExtension(?string $mimeType, string $imageUrl): string
+    {
+        $normalized = strtolower((string) $mimeType);
+        $normalized = trim(explode(';', $normalized)[0]);
+        $map = [
+            'image/jpeg' => 'jpg',
+            'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'image/bmp' => 'bmp',
+            'image/svg+xml' => 'svg',
+        ];
+        if (isset($map[$normalized])) {
+            return $map[$normalized];
+        }
+
+        $path = (string) parse_url($imageUrl, PHP_URL_PATH);
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        if ($ext !== '') {
+            return $ext;
+        }
+
+        return 'jpg';
     }
 }

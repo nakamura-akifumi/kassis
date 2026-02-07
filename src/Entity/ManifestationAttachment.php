@@ -29,6 +29,9 @@ class ManifestationAttachment
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $mimeType = null;
 
+    #[ORM\Column(length: 2048, nullable: true)]
+    private ?string $sourceUrl = null;
+
     #[ORM\Column]
     private ?\DateTimeImmutable $createdAt = null;
 
@@ -94,6 +97,17 @@ class ManifestationAttachment
     public function setMimeType(?string $mimeType): static
     {
         $this->mimeType = $mimeType;
+        return $this;
+    }
+
+    public function getSourceUrl(): ?string
+    {
+        return $this->sourceUrl;
+    }
+
+    public function setSourceUrl(?string $sourceUrl): static
+    {
+        $this->sourceUrl = $sourceUrl;
         return $this;
     }
 

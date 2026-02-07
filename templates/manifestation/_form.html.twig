@@ -78,6 +78,10 @@
                         {{ form_widget(form.record_source, {'attr': {'class': 'form-control form-control-sm', 'placeholder': '例：NDL, ISBN等'}}) }}
                     </div>
                     <div class="col-12">
+                        {{ form_label(form.release_date_string, 'Model.Manifestation.fields.ReleaseDateString' | trans, {'label_attr': {'class': 'form-label small mb-0'}}) }}
+                        {{ form_widget(form.release_date_string, {'attr': {'class': 'form-control form-control-sm', 'placeholder': '例：2024.01.01, c1950-'}}) }}
+                    </div>
+                    <div class="col-12">
                         {{ form_label(form.contributor1, 'Model.Manifestation.fields.Contributor1' | trans, {'label_attr': {'class': 'form-label small mb-0'}}) }}
                         {{ form_widget(form.contributor1, {'attr': {'class': 'form-control form-control-sm', 'placeholder': '著者・出版社など'}}) }}
                     </div>
@@ -130,10 +134,20 @@
                     <div class="col-md-3">
                         {{ form_label(form.type1, 'Model.Manifestation.fields.Type1' | trans, {'label_attr': {'class': 'form-label small mb-0'}}) }}
                         {{ form_widget(form.type1, {'attr': {'class': 'form-control form-control-sm', 'placeholder': '分類1'}}) }}
+                        {% if not form.type1.vars.valid %}
+                            <div class="invalid-feedback d-block">
+                                {{ form_errors(form.type1) }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="col-md-3">
                         {{ form_label(form.type2, 'Model.Manifestation.fields.Type2' | trans, {'label_attr': {'class': 'form-label small mb-0'}}) }}
                         {{ form_widget(form.type2, {'attr': {'class': 'form-control form-control-sm', 'placeholder': '分類2'}}) }}
+                        {% if not form.type2.vars.valid %}
+                            <div class="invalid-feedback d-block">
+                                {{ form_errors(form.type2) }}
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="col-md-3">
                         {{ form_label(form.type3, 'Model.Manifestation.fields.Type3' | trans, {'label_attr': {'class': 'form-label small mb-0'}}) }}
