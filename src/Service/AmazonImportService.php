@@ -4,9 +4,11 @@ namespace App\Service;
 
 use App\Entity\Manifestation;
 use App\Entity\ManifestationAttachment;
+use App\Repository\CodeRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\String\Slugger\SluggerInterface;
@@ -21,6 +23,8 @@ class AmazonImportService
     protected NdlImportService $ndlImportService;
     private bool $useNdl;
     private SluggerInterface $slugger;
+    private ParameterBagInterface $params;
+    private CodeRepository $codeRepository;
 
 
     public function __construct(
@@ -30,7 +34,9 @@ class AmazonImportService
         LoggerInterface $logger,
         string $projectDir,
         bool $useNdl,
-        SluggerInterface $slugger
+        SluggerInterface $slugger,
+        ParameterBagInterface $params,
+        CodeRepository $codeRepository
     ) {
         $this->entityManager = $entityManager;
         $this->managerRegistry = $managerRegistry;
@@ -39,6 +45,8 @@ class AmazonImportService
         $this->ndlImportService = $ndlImportService;
         $this->useNdl = $useNdl;
         $this->slugger = $slugger;
+        $this->params = $params;
+        $this->codeRepository = $codeRepository;
     }
 
     public function processFile(UploadedFile $zipFile, bool $onlyIsbnAsin = false, ?UploadedFile $kindleFile = null): array
@@ -428,6 +436,15 @@ class AmazonImportService
                 }
                 if ($kindleItem !== null) {
                     $manifestation->setType2("kindle");
+                    if ($manifestation->getType1() === null) {
+                        $kindleType1 = $this->resolveKindleType1();
+                        if ($kindleType1 !== null) {
+                            $manifestation->setType1($kindleType1);
+                        }
+                    }
+                    if ($manifestation->getLoanRestriction() === null) {
+                        $manifestation->setLoanRestriction("貸出禁止");
+                    }
                 }
 
                 // データベースに保存
@@ -639,5 +656,29 @@ class AmazonImportService
         }
 
         return 'jpg';
+    }
+
+    private function resolveKindleType1(): ?string
+    {
+        $useType1Code = $this->params->has('app.manifestation.type1.use_code')
+            && (bool) $this->params->get('app.manifestation.type1.use_code');
+
+        if (!$useType1Code) {
+            return '図書';
+        }
+
+        $code = $this->codeRepository->findOneBy([
+            'type' => 'manifestation_type1',
+            'displayname' => '図書',
+        ]);
+        if ($code === null) {
+            $this->logger->warning('図書のtype1コードが見つかりませんでした', [
+                'type' => 'manifestation_type1',
+                'displayname' => '図書',
+            ]);
+            return null;
+        }
+
+        return $code->getIdentifier();
     }
 }
