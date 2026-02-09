@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}貸出条件編集{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">貸出条件編集</h1>
+            <p class="text-muted small mb-0">利用者グループと貸出グループの貸出条件を編集します。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_settings_loan_condition') }}">一覧へ戻る</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <strong class="small">編集</strong>
+        </div>
+        <div class="card-body">
+            <form class="row g-2 align-items-end" method="post" action="{{ path('app_settings_loan_condition_update', {id: condition.id}) }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('loan_condition_update_' ~ condition.id) }}">
+                <div class="col-md-4">
+                    <label class="form-label small mb-1" for="loan-condition-group">貸出グループ</label>
+                    {% set allGroupLabel = 'Model.LoanGroup.values.all_group_members_identifier'|trans %}
+                    <select class="form-select form-select-sm" id="loan-condition-group" name="loan_group_id" required>
+                        <option value="">選択してください</option>
+                        <option value="all" {{ condition.loanGroup ? '' : 'selected' }}>{{ allGroupLabel }}</option>
+                        {% for group in loanGroups %}
+                            <option value="{{ group.id }}" {{ condition.loanGroup and condition.loanGroup.id == group.id ? 'selected' : '' }}>{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1" for="loan-condition-member-group">利用者グループ</label>
+                    <select class="form-select form-select-sm" id="loan-condition-member-group" name="member_group" required>
+                        <option value="">選択してください</option>
+                        {% for label, value in memberGroupOptions %}
+                            <option value="{{ value }}" {{ condition.memberGroup == value ? 'selected' : '' }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-loan-limit">貸出数上限</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-loan-limit" name="loan_limit" value="{{ condition.loanLimit }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-loan-period">貸出期間(日)</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-loan-period" name="loan_period" value="{{ condition.loanPeriod }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-renew-limit">更新回数上限</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-renew-limit" name="renew_limit" value="{{ condition.renewLimit }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-reservation-limit">予約数上限</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-reservation-limit" name="reservation_limit" value="{{ condition.reservationLimit }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1 d-block">返却日が閉館日の場合</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="loan-condition-adjust" name="adjust_due_on_closed_day" value="1" {{ condition.adjustDueOnClosedDay ? 'checked' : '' }}>
+                        <label class="form-check-label" for="loan-condition-adjust">最後の開館日にする</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">更新</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

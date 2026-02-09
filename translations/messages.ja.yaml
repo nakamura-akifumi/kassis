@@ -16,6 +16,7 @@ Menu:
   CirculationCheckin: "返却"
   MemberIndex: "利用者"
   Settings: "設定"
+  LoanGroup: "貸出グループ"
 Screen:
   Manifestation:
     Index: "資料一覧"
@@ -34,6 +35,10 @@ Model:
     name: "資料"
     display_identifier: "資料識別子"
     not_found: "該当する資料が見つかりませんでした"
+    values:
+      LoanRestriction:
+        None: "なし"
+
     fields:
       Id: "ID"
       Title: "タイトル"
@@ -94,6 +99,9 @@ Model:
       Note: "注記"
       CreatedAt: "作成日時"
       UpdatedAt: "更新日時"
+  LoanGroup:
+    values:
+      all_group_members_identifier: "全て"
 Workflow:
   Manifestation:
     Status:

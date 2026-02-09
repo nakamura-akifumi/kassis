@@ -1,0 +1,129 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}貸出条件設定{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">貸出条件設定</h1>
+            <p class="text-muted small mb-0">利用者グループと貸出グループの組み合わせで貸出条件を設定します。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_settings_index') }}">設定一覧へ</a>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_home') }}">ホームへ</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white d-flex align-items-center justify-content-between">
+            <strong class="small">新規追加</strong>
+            <form method="post" action="{{ path('app_settings_loan_condition_create_defaults') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('loan_condition_create_defaults') }}">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">デフォルトで一括作成</button>
+            </form>
+        </div>
+        <div class="card-body py-2">
+            <form class="row g-2 align-items-end" method="post" action="{{ path('app_settings_loan_condition_create') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('loan_condition_create') }}">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="loan-condition-group">貸出グループ</label>
+                    {% set allGroupLabel = 'Model.LoanGroup.values.all_group_members_identifier'|trans %}
+                    <select class="form-select form-select-sm" id="loan-condition-group" name="loan_group_id" required>
+                        <option value="">選択してください</option>
+                        <option value="all">{{ allGroupLabel }}</option>
+                        {% for group in loanGroups %}
+                            <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="loan-condition-member-group">利用者グループ</label>
+                    <select class="form-select form-select-sm" id="loan-condition-member-group" name="member_group" required>
+                        <option value="">選択してください</option>
+                        {% for label, value in memberGroupOptions %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-loan-limit">貸出数上限</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-loan-limit" name="loan_limit" value="0" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-loan-period">貸出期間(日)</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-loan-period" name="loan_period" value="0" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-renew-limit">更新回数上限</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-renew-limit" name="renew_limit" value="0" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1" for="loan-condition-reservation-limit">予約数上限</label>
+                    <input type="number" min="0" class="form-control form-control-sm" id="loan-condition-reservation-limit" name="reservation_limit" value="0" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1 d-block">返却日が閉館日の場合</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="loan-condition-adjust" name="adjust_due_on_closed_day" value="1">
+                        <label class="form-check-label" for="loan-condition-adjust">最後の開館日にする</label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">追加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <strong>一覧</strong>
+        </div>
+        <div class="card-body p-0">
+            {% if conditions is empty %}
+                <div class="p-3 small text-muted">登録データがありません。</div>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>貸出グループ</th>
+                                <th>利用者グループ</th>
+                                <th>貸出数上限</th>
+                                <th>貸出期間</th>
+                                <th>更新回数上限</th>
+                                <th>予約数上限</th>
+                                <th>閉館日調整</th>
+                                <th class="text-end">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for condition in conditions %}
+                                {% set memberGroupKey = 'Model.Member.values.Group1.' ~ condition.memberGroup %}
+                                {% set memberGroupLabel = memberGroupKey|trans %}
+                                <tr>
+                                    <td>{% if condition.loanGroup %}{{ condition.loanGroup.name }}{% else %}{{ allGroupLabel }}{% endif %}</td>
+                                    <td>{{ memberGroupLabel == memberGroupKey ? condition.memberGroup : memberGroupLabel }}</td>
+                                    <td>{{ condition.loanLimit }}</td>
+                                    <td>{{ condition.loanPeriod }}</td>
+                                    <td>{{ condition.renewLimit }}</td>
+                                    <td>{{ condition.reservationLimit }}</td>
+                                    <td>{{ condition.adjustDueOnClosedDay ? '適用' : 'なし' }}</td>
+                                    <td class="text-end">
+                                        <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_loan_condition_edit', {id: condition.id}) }}">編集</a>
+                                        <form method="post" action="{{ path('app_settings_loan_condition_delete', {id: condition.id}) }}" class="d-inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('loan_condition_delete_' ~ condition.id) }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('削除しますか？')">削除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

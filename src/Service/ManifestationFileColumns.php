@@ -141,6 +141,12 @@ final class ManifestationFileColumns
             'getter' => 'getStatus2',
             'importKey' => 'status2',
         ],
+        'loanRestriction' => [
+            'labelKey' => 'Model.Manifestation.fields.LoanRestriction',
+            'getter' => 'getLoanRestriction',
+            'importKey' => 'loan_restriction',
+            'headerAliases' => ['loan_restriction'],
+        ],
         'releaseDateString' => [
             'labelKey' => 'Model.Manifestation.fields.ReleaseDateString',
             'getter' => 'getReleaseDateString',

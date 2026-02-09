@@ -342,6 +342,9 @@ class FileService
                     if (isset($cellvals['status2'])) {
                         $manifestation->setStatus2($cellvals['status2']);
                     }
+                    if (isset($cellvals['loan_restriction'])) {
+                        $manifestation->setLoanRestriction($cellvals['loan_restriction']);
+                    }
                     if (isset($cellvals['release_date_string'])) {
                         $manifestation->setReleaseDateString($cellvals['release_date_string']);
                     }

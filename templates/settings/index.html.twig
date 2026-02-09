@@ -1,0 +1,47 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}設定{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">設定</h1>
+            <p class="text-muted small mb-0">各設定画面へ移動できます。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_home') }}">ホームへ</a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">コード設定</h2>
+                    <p class="text-muted small mb-2">コードテーブルの保守とインポート/エクスポート。</p>
+                    <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_code') }}">コード設定へ</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">貸出グループ設定</h2>
+                    <p class="text-muted small mb-2">分類1を貸出グループにまとめて管理。</p>
+                    <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_loan_group') }}">貸出グループへ</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">貸出条件設定</h2>
+                    <p class="text-muted small mb-2">利用者グループと貸出グループの貸出条件を管理。</p>
+                    <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_loan_condition') }}">貸出条件へ</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
