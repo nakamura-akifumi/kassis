@@ -3,7 +3,9 @@
 namespace App\Repository;
 
 use App\Entity\Checkout;
+use App\Entity\LoanGroupType1;
 use App\Entity\Manifestation;
+use App\Entity\Member;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -69,7 +71,7 @@ class CheckoutRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function countActiveByMember(\App\Entity\Member $member): int
+    public function countActiveByMember(Member $member): int
     {
         return (int) $this->createQueryBuilder('c')
             ->select('COUNT(c.id)')
@@ -79,5 +81,26 @@ class CheckoutRepository extends ServiceEntityRepository
             ->setParameter('statuses', [Checkout::STATUS_CHECKED_OUT, '貸出中'])
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /**
+     * @return array<int, array{loan_group_id: int, cnt: string}>
+     */
+    public function countActiveByMemberGroupedByLoanGroup(Member $member): array
+    {
+        return $this->createQueryBuilder('c')
+            ->select('lg.id AS loan_group_id')
+            ->addSelect('COUNT(m.id) AS cnt')
+            ->innerJoin('c.member', 'mem')
+            ->innerJoin('c.manifestation', 'm')
+            ->innerJoin(LoanGroupType1::class, 'lgt1', 'WITH', 'm.type1 = lgt1.type1_identifier')
+            ->innerJoin('lgt1.loanGroup', 'lg')
+            ->andWhere('c.status <> :returned')
+            ->andWhere('mem = :member')
+            ->groupBy('lg.id')
+            ->setParameter('returned', Checkout::STATUS_RETURNED)
+            ->setParameter('member', $member)
+            ->getQuery()
+            ->getArrayResult();
     }
 }

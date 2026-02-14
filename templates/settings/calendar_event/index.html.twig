@@ -1,0 +1,103 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}イベントカレンダー管理{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">イベントカレンダー管理</h1>
+            <p class="text-muted small mb-0">閉館日・イベントを登録し、iCalで入出力できます。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_settings_index') }}">設定へ戻る</a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_calendar_events_export') }}">iCalエクスポート</a>
+            <a class="btn btn-primary btn-sm" href="{{ path('app_settings_calendar_events_new') }}">新規作成</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            <form method="post" action="{{ path('app_settings_calendar_events_import') }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">iCal (.ics) インポート</label>
+                    <input class="form-control" type="file" name="ics_file" accept=".ics" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_import') }}">
+                    <button class="btn btn-outline-primary w-100" type="submit">インポート</button>
+                </div>
+                <div class="col-md-3 text-muted small">
+                    既存のUID+RECURRENCE-IDは更新されます。
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>件名</th>
+                            <th>期間</th>
+                            <th>閉館</th>
+                            <th>終日</th>
+                            <th>UID</th>
+                            <th class="text-end">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ event.summary }}</div>
+                                    {% if event.location %}
+                                        <div class="text-muted small">{{ event.location }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if event.allDay %}
+                                        {{ event.dtStart|date('Y-m-d') }}
+                                        {% if event.dtEnd %}〜{{ event.dtEnd|date('Y-m-d') }}{% endif %}
+                                    {% else %}
+                                        {{ event.dtStart|date('Y-m-d H:i') }}
+                                        {% if event.dtEnd %}〜{{ event.dtEnd|date('Y-m-d H:i') }}{% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if event.isClosed %}
+                                        <span class="badge bg-danger">閉館</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">通常</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if event.allDay %}
+                                        <span class="badge bg-info">終日</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">時間指定</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted small">{{ event.uid }}</td>
+                                <td class="text-end">
+                                    <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_calendar_events_edit', {id: event.id}) }}">編集</a>
+                                    <form method="post" action="{{ path('app_settings_calendar_events_delete', {id: event.id}) }}" class="d-inline" onsubmit="return confirm('削除しますか？');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('calendar_event_delete_' ~ event.id) }}">
+                                        <button class="btn btn-outline-danger btn-sm" type="submit">削除</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">イベントが登録されていません。</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

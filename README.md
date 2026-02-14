@@ -90,3 +90,5 @@ symfony server:start -d --allow-all-ip
 php bin/console cache:clear --no-warmup
 php bin/console cache:warmup
 
+Composer update azuyalabs/yasumi
+Seed holidays (example): bin/console app:calendar:sync-holidays --year=2026 

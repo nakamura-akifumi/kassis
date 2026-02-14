@@ -3,6 +3,9 @@
 namespace App\Service;
 
 use App\Entity\Checkout;
+use App\Entity\LoanCondition;
+use App\Entity\LoanGroup;
+use App\Entity\LoanGroupType1;
 use App\Entity\Manifestation;
 use App\Entity\Reservation;
 use App\Repository\CheckoutRepository;
@@ -13,6 +16,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
 use Symfony\Component\Workflow\Registry;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class CirculationService
 {
@@ -22,7 +26,9 @@ class CirculationService
         private MemberRepository $memberRepository,
         private ReservationRepository $reservationRepository,
         private CheckoutRepository $checkoutRepository,
+        private CalendarService $calendarService,
         private Registry $workflowRegistry,
+        private TranslatorInterface $translator,
         private ParameterBagInterface $params,
     ) {
     }
@@ -63,18 +69,116 @@ class CirculationService
      */
     public function checkout(string $memberIdentifier, array $manifestationIdentifiers): array
     {
+        // a. 対象者(member)のmemberテーブルを検索
         $member = $this->memberRepository->findOneBy(['identifier' => $memberIdentifier]);
         if ($member === null) {
             throw new \InvalidArgumentException('Member not found.');
+        }
+
+        // b. memberの状態(status)が無効(inactive)の場合 → 対象の利用者の状態が無効なので貸出が出来ません。
+        if (!$member->isActive()) {
+            throw new \InvalidArgumentException('Member is not active.');
         }
 
         $results = [];
         $now = new \DateTime();
 
         foreach ($manifestationIdentifiers as $manifestationIdentifier) {
+            // c. 対象のmanifestationのチェック
             $manifestation = $this->manifestationRepository->findOneBy(['identifier' => $manifestationIdentifier]);
             if ($manifestation === null) {
                 throw new \InvalidArgumentException('Manifestation not found: ' . $manifestationIdentifier);
+            }
+            // d. ($manifestation)の利用制限を確認
+            if ($manifestation->isRestricted()) {
+                throw new \InvalidArgumentException('Manifestation is restricted.');
+            }
+
+            // e. ($member) の貸出状況を確認する
+            $checkoutCountsByLoanGroup = $this->checkoutRepository->countActiveByMemberGroupedByLoanGroup($member);
+
+            // 2. Manifestationの分類１に対する貸出グループを取得
+            $loanGroup = null;
+            $loanGroupType1Identifiers = null;
+            $type1Identifier = $manifestation->getType1();
+            if (is_string($type1Identifier) && trim($type1Identifier) !== '') {
+                $loanGroupType1 = $this->entityManager->getRepository(LoanGroupType1::class)->findOneBy([
+                    'type1_identifier' => $type1Identifier,
+                ]);
+                $loanGroup = $loanGroupType1?->getLoanGroup();
+/*
+                if ($loanGroup !== null) {
+                    $loanGroupType1Identifiers = $this->entityManager->getRepository(LoanGroupType1::class)->findBy([
+                        'loan_group_id' => $loanGroup?->getId(),
+                    ]);
+                }
+*/
+            }
+
+
+            // 3. loan_group テーブルに messages.ja.yaml の Model.LoanGroup.values.all_group_members_identifier に設定されている文字列と同じnameのレコードがあるかチェックして、ある場合は取得
+            $allGroupMembersIdentifier = $this->translator->trans('Model.LoanGroup.values.all_group_members_identifier', [], 'messages', 'ja');
+            $allGroupMembersLoanGroup = $this->entityManager->getRepository(LoanGroup::class)->findOneBy([
+                'name' => $allGroupMembersIdentifier,
+            ]);
+
+            // 4-1:
+            $loanCondition = $this->entityManager->getRepository(LoanCondition::class)->findOneBy([
+                'loanGroup' => $loanGroup,
+                'member_group' => $member->getGroup1(),
+            ]);
+
+            // 4-2:
+            $loanAllGroupCondition = $this->entityManager->getRepository(LoanCondition::class)->findOneBy([
+                'loanGroup' => $allGroupMembersLoanGroup,
+                'member_group' => $member->getGroup1(),
+            ]);
+
+            if ($loanCondition === null && $loanAllGroupCondition === null) {
+                //throw new \RuntimeException('Loan condition not found for loan group and member group');
+
+                if (!$this->params->has('app.checkout.due_days') &&
+                    !$this->params->has('app.checkout.loan_limit') &&
+                    !$this->params->has('app.checkout.renew_limit') &&
+                    !$this->params->has('app.checkout.reservation_limit') &&
+                    !$this->params->has('app.checkout.adjust_due_on_closed_day')
+                ) {
+                    throw new \RuntimeException('Loan condition not found for loan group and member group and config/parameter');
+                }
+
+                $loanCondition = new LoanCondition();
+                $loanCondition->setLoanPeriod($this->params->get('app.checkout.due_days'));
+                $loanCondition->setLoanLimit($this->params->get('app.checkout.loan_limit'));
+                $loanCondition->setRenewLimit($this->params->get('app.checkout.renew_limit'));
+                $loanCondition->setReservationLimit($this->params->get('app.checkout.reservation_limit'));
+                $loanCondition->setAdjustDueOnClosedDay($this->params->get('app.checkout.adjust_due_on_closed_day'));
+
+            }
+
+            // ５−１：貸出冊数を超過していないかを確認（全体）
+            $allCheckoutCount = $this->checkoutRepository->countActiveByMember($member);
+            if ($loanAllGroupCondition !== null && $allCheckoutCount + 1 > $loanAllGroupCondition->getLoanLimit()) {
+                throw new \RuntimeException('Loan condition max count exceeded');
+            }
+
+            // ５−２：対象のmanifestationの貸出条件で貸出冊数を超過していないかを確認
+            if ($loanCondition !== null) {
+                $count = 0;
+                foreach ($checkoutCountsByLoanGroup as $co) {
+                    if ($co['loan_group_id'] === $loanGroup?->getId()) {
+                        $count += (int) $co['cnt'];
+                    }
+                }
+                if ($count + 1 > $loanCondition->getLoanLimit()) {
+                    throw new \RuntimeException('Loan condition max count exceeded');
+                }
+            }
+
+            // 貸出日付算出
+            if ($loanCondition !== null) {
+                $dueDate = $this->calculateDueDate($now, $loanCondition->getLoanPeriod(), $loanCondition->isAdjustDueOnClosedDay());
+            } else {
+                $dueDate = $this->calculateDueDate($now, $loanAllGroupCondition->getLoanPeriod(), $loanAllGroupCondition->isAdjustDueOnClosedDay());
             }
 
             $checkout = new Checkout();
@@ -82,7 +186,7 @@ class CirculationService
             $checkout->setManifestation($manifestation);
             $checkout->setCheckedOutAt($now);
             $checkout->setStatus(Checkout::STATUS_CHECKED_OUT);
-            $checkout->setDueDate($this->calculateDueDate($now));
+            $checkout->setDueDate($dueDate);
 
             $reservation = $this->reservationRepository->findWaitingByManifestationAndMember($manifestation, $member);
             if ($reservation !== null) {
@@ -144,18 +248,15 @@ class CirculationService
         return $this->workflowRegistry->get($manifestation, 'manifestation');
     }
 
-    private function calculateDueDate(\DateTimeInterface $base): ?\DateTimeInterface
+    private function calculateDueDate(\DateTimeInterface $base, int $days, bool $isAdjustDueOnClosedDay): ?\DateTimeInterface
     {
-        if (!$this->params->has('app.checkout.due_days')) {
-            return null;
-        }
-        $days = $this->params->get('app.checkout.due_days');
-        $days = is_numeric($days) ? (int) $days : null;
-        if ($days === null || $days <= 0 || $days === 9999) {
+        if ($days <= 0 || $days === 9999) {
             return null;
         }
 
         $date = ($base instanceof \DateTimeImmutable) ? $base : \DateTimeImmutable::createFromInterface($base);
-        return $date->modify('+' . $days . ' days');
+        $dueDate = $date->modify('+' . $days . ' days');
+
+        return $this->calendarService->adjustToNextOpenDate($dueDate, $isAdjustDueOnClosedDay);
     }
 }

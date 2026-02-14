@@ -26,7 +26,6 @@ parameters:
         grid: 1000
         map: 100
     app.member.expiry_days: 1095
-    app.checkout.due_days: 14
     app.manifestation.load_restriction: ['public', 'restricted']
     app.code.types: ['manifestation_type1', 'manifestation_type2', 'manifestation_type3', 'manifestation_type4', 'manifestation_location1','manifestation_location2','checkout_max_loans', 'checkout_max_renewals', 'checkout_due_date']
     app.member.group1: ['standard', 'vip', 'guest']

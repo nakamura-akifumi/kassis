@@ -16,6 +16,8 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 #[UniqueEntity(fields: ['identifier'], message: 'この識別子は既に使用されています')]
 class Manifestation
 {
+    public const LOAN_RESTRICTION_NORMAL = '通常貸出';
+    public const LOAN_RESTRICTION_PROHIBITED = '貸出禁止';
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -369,6 +371,20 @@ class Manifestation
     {
         $this->loan_restriction = $loan_restriction;
         return $this;
+    }
+
+    public function isRestricted(): bool
+    {
+        if ($this->loan_restriction === null) {
+            return false;
+        }
+
+        $value = trim($this->loan_restriction);
+        if ($value === '') {
+            return false;
+        }
+
+        return $value === self::LOAN_RESTRICTION_PROHIBITED;
     }
 
     public function getReleaseDateString(): ?string

@@ -184,6 +184,23 @@ class Member
         return self::STATUS_LABELS[$this->status] ?? $this->status;
     }
 
+    public function isActive(): bool
+    {
+        $normalized = self::normalizeStatus($this->status);
+        if ($normalized !== self::STATUS_ACTIVE) {
+            return false;
+        }
+
+        if ($this->expiry_date instanceof \DateTimeInterface) {
+            $today = new \DateTimeImmutable('today');
+            if ($this->expiry_date < $today) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public static function normalizeStatus(?string $status): ?string
     {
         if ($status === null) {
