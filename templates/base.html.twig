@@ -91,6 +91,18 @@
         </nav>
 
         <div class="container">
+            <div id="reserve-mode-banner" class="alert alert-warning small py-2 d-none" role="alert">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <strong>予約中モード</strong>：利用者または資料が確定済みです。
+                        <a href="{{ path('app_circulation_reserve_page') }}" class="alert-link">予約画面へ移動</a>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="reserve-mode-clear">解除</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
             {% for type, messages in app.flashes %}
                 {% for message in messages %}
                     <div class="alert alert-{{ type }} alert-dismissible fade show" role="alert">
@@ -106,5 +118,38 @@
         </main>
         {% include '_footer.html.twig' %}
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            const reserveModeBanner = document.getElementById('reserve-mode-banner');
+            const reserveModeClear = document.getElementById('reserve-mode-clear');
+
+            function getCookie(name) {
+                const pair = document.cookie.split('; ').find((row) => row.startsWith(name + '='));
+                return pair ? decodeURIComponent(pair.split('=')[1]) : '';
+            }
+
+            function clearCookie(name) {
+                document.cookie = `${name}=; max-age=0; path=/`;
+            }
+
+            function syncReserveModeBanner() {
+                const hasMode = getCookie('reserve_mode') === '1';
+                const hasMember = getCookie('reserve_member') !== '';
+                const hasManifestation = getCookie('reserve_manifestation') !== '';
+                if (hasMode || hasMember || hasManifestation) {
+                    reserveModeBanner.classList.remove('d-none');
+                } else {
+                    reserveModeBanner.classList.add('d-none');
+                }
+            }
+
+            reserveModeClear?.addEventListener('click', () => {
+                clearCookie('reserve_mode');
+                clearCookie('reserve_member');
+                clearCookie('reserve_manifestation');
+                syncReserveModeBanner();
+            });
+
+            syncReserveModeBanner();
+        </script>
     </body>
 </html>

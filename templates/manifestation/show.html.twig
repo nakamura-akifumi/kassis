@@ -429,6 +429,9 @@
                         <a href="{{ path('app_manifestation_edit', {'id': manifestation.id}) }}" class="btn btn-primary">
                             <i class="fas fa-edit"></i> 編集
                         </a>
+                        <a href="{{ path('app_circulation_reserve_page', {manifestationIdentifier: manifestation.identifier}) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-bookmark"></i> 予約へ
+                        </a>
                         {% if manifestation.amazonUrl %}
                             <a href="{{ manifestation.amazonUrl }}" target="_blank" class="btn btn-warning">
                                 <i class="fab fa-amazon"></i> Amazonで見る

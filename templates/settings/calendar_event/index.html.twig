@@ -41,10 +41,9 @@
                     <thead class="table-light">
                         <tr>
                             <th>件名</th>
-                            <th>期間</th>
-                            <th>閉館</th>
-                            <th>終日</th>
-                            <th>UID</th>
+                            <th>開始日</th>
+                            <th>終了日</th>
+                            <th>繰り返し</th>
                             <th class="text-end">操作</th>
                         </tr>
                     </thead>
@@ -58,29 +57,75 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if event.allDay %}
-                                        {{ event.dtStart|date('Y-m-d') }}
-                                        {% if event.dtEnd %}〜{{ event.dtEnd|date('Y-m-d') }}{% endif %}
+                                    {% set startWeekday = ('Date.Weekday.' ~ event.dtStart|date('D'))|trans %}
+                                    {% set endDateDisplay = '' %}
+                                    {% set endWeekday = '' %}
+                                    {% if event.rrule %}
+                                        {{ event.dtStart|date('Y-m-d') }}（{{ startWeekday }}）
+                                        {% if event.dtEnd %}
+                                            {% set endDateDisplay = event.dtEnd|date('Y-m-d') %}
+                                            {% set endWeekday = ('Date.Weekday.' ~ event.dtEnd|date('D'))|trans %}
+                                        {% endif %}
+                                        {% if endDateDisplay %}
+                                            〜{{ endDateDisplay }}（{{ endWeekday }}）
+                                        {% endif %}
                                     {% else %}
-                                        {{ event.dtStart|date('Y-m-d H:i') }}
-                                        {% if event.dtEnd %}〜{{ event.dtEnd|date('Y-m-d H:i') }}{% endif %}
+                                        {{ event.dtStart|date('Y-m-d') }}（{{ startWeekday }}）
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if event.isClosed %}
-                                        <span class="badge bg-danger">閉館</span>
+                                    {% if event.rrule %}
+                                        {% set untilValue = '' %}
+                                        {% for part in event.rrule|upper|split(';') %}
+                                            {% if part starts with 'UNTIL=' %}
+                                                {% set untilRaw = part|replace({'UNTIL=': ''}) %}
+                                                {% if untilRaw|length >= 8 %}
+                                                    {% set untilValue = untilRaw|slice(0, 8) %}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if untilValue %}
+                                            {% set untilDate = untilValue|slice(0, 4) ~ '-' ~ untilValue|slice(4, 2) ~ '-' ~ untilValue|slice(6, 2) %}
+                                            {{ untilDate }}（{{ ('Date.Weekday.' ~ untilDate|date('D'))|trans }}）
+                                        {% else %}
+                                            <span class="text-muted">未設定</span>
+                                        {% endif %}
                                     {% else %}
-                                        <span class="badge bg-secondary">通常</span>
+                                        {% if event.dtEnd %}
+                                            {{ event.dtEnd|date('Y-m-d') }}（{{ ('Date.Weekday.' ~ event.dtEnd|date('D'))|trans }}）
+                                        {% else %}
+                                            <span class="text-muted">未設定</span>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if event.allDay %}
-                                        <span class="badge bg-info">終日</span>
+                                    {% if event.rrule %}
+                                        {% set freq = '' %}
+                                        {% set interval = '1' %}
+                                        {% for part in event.rrule|upper|split(';') %}
+                                            {% if part starts with 'FREQ=' %}
+                                                {% set freq = part|replace({'FREQ=': ''}) %}
+                                            {% elseif part starts with 'INTERVAL=' %}
+                                                {% set interval = part|replace({'INTERVAL=': ''}) %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% if freq == 'DAILY' %}
+                                            毎日
+                                        {% elseif freq == 'WEEKLY' and interval == '2' %}
+                                            隔週
+                                        {% elseif freq == 'WEEKLY' %}
+                                            毎週
+                                        {% elseif freq == 'MONTHLY' %}
+                                            毎月
+                                        {% elseif freq == 'YEARLY' %}
+                                            毎年
+                                        {% else %}
+                                            繰り返し
+                                        {% endif %}
                                     {% else %}
-                                        <span class="badge bg-light text-dark">時間指定</span>
+                                        <span class="text-muted">なし</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-muted small">{{ event.uid }}</td>
                                 <td class="text-end">
                                     <a class="btn btn-outline-primary btn-sm" href="{{ path('app_settings_calendar_events_edit', {id: event.id}) }}">編集</a>
                                     <form method="post" action="{{ path('app_settings_calendar_events_delete', {id: event.id}) }}" class="d-inline" onsubmit="return confirm('削除しますか？');">
@@ -91,7 +136,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">イベントが登録されていません。</td>
+                                <td colspan="5" class="text-center text-muted py-4">イベントが登録されていません。</td>
                             </tr>
                         {% endfor %}
                     </tbody>

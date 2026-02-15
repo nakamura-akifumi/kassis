@@ -126,9 +126,12 @@ final class ManifestationController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}', name: 'app_manifestation_show', methods: ['GET', 'POST'])]
-    public function show(Request $request, Manifestation $manifestation, EntityManagerInterface $entityManager, SluggerInterface $slugger, CodeRepository $codeRepository, ParameterBagInterface $params): Response
+    #[Route('/{id<\\d+>}', name: 'app_manifestation_show', methods: ['GET', 'POST'])]
+    public function show(Request $request, ?Manifestation $manifestation, EntityManagerInterface $entityManager, SluggerInterface $slugger, CodeRepository $codeRepository, ParameterBagInterface $params): Response
     {
+        if ($manifestation === null) {
+            return new Response('Manifestation not found.', Response::HTTP_NOT_FOUND);
+        }
         $form = $this->createForm(AttachmentUploadFormType::class);
         $form->handleRequest($request);
 
@@ -259,9 +262,12 @@ final class ManifestationController extends AbstractController
         return $this->redirectToRoute('app_manifestation_show', ['id' => $manifestationId]);
     }
 
-    #[Route('/{id}/edit', name: 'app_manifestation_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, Manifestation $manifestation, EntityManagerInterface $entityManager): Response
+    #[Route('/{id<\\d+>}/edit', name: 'app_manifestation_edit', methods: ['GET', 'POST'])]
+    public function edit(Request $request, ?Manifestation $manifestation, EntityManagerInterface $entityManager): Response
     {
+        if ($manifestation === null) {
+            return new Response('Manifestation not found.', Response::HTTP_NOT_FOUND);
+        }
         $form = $this->createForm(ManifestationType::class, $manifestation);
         $form->handleRequest($request);
 
@@ -277,9 +283,12 @@ final class ManifestationController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/popup', name: 'app_manifestation_popup', methods: ['GET'])]
-    public function popup(Manifestation $manifestation): JsonResponse
+    #[Route('/{id<\\d+>}/popup', name: 'app_manifestation_popup', methods: ['GET'])]
+    public function popup(?Manifestation $manifestation): JsonResponse
     {
+        if ($manifestation === null) {
+            return new JsonResponse(['error' => 'Manifestation not found.'], Response::HTTP_NOT_FOUND);
+        }
         return $this->json([
             'id' => $manifestation->getId(),
             'title' => $manifestation->getTitle(),
@@ -308,17 +317,49 @@ final class ManifestationController extends AbstractController
         ]);
     }
 
-    #[Route('/{id}/popup_view', name: 'app_manifestation_popup_view', methods: ['GET'])]
-    public function popupView(Manifestation $manifestation): Response
+    #[Route('/{id<\\d+>}/popup_view', name: 'app_manifestation_popup_view', methods: ['GET'])]
+    public function popupView(?Manifestation $manifestation): Response
     {
+        if ($manifestation === null) {
+            return new Response('Manifestation not found.', Response::HTTP_NOT_FOUND);
+        }
         return $this->render('manifestation/_popup_detail.html.twig', [
             'manifestation' => $manifestation,
         ]);
     }
 
-    #[Route('/{id}/delete', name: 'app_manifestation_delete', methods: ['POST'])]
-    public function delete(Request $request, Manifestation $manifestation, EntityManagerInterface $entityManager): Response
+    #[Route('/check', name: 'app_manifestation_check', methods: ['GET', 'POST'])]
+    public function check(Request $request, ManifestationRepository $manifestationRepository): JsonResponse
     {
+        $data = json_decode($request->getContent(), true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+        $identifier = $data['identifier'] ?? $request->query->get('identifier');
+
+        if (!$identifier) {
+            return new JsonResponse(['exists' => false], 400);
+        }
+
+        $manifestation = $manifestationRepository->findOneByIdentifierNormalized((string) $identifier);
+
+        return new JsonResponse([
+            'exists' => $manifestation !== null,
+            'title' => $manifestation?->getTitle(),
+            'identifier' => $manifestation?->getIdentifier(),
+            'type1' => $manifestation?->getType1(),
+            'location1' => $manifestation?->getLocation1(),
+            'status1' => $manifestation?->getStatus1(),
+            'status2' => $manifestation?->getStatus2(),
+        ]);
+    }
+
+    #[Route('/{id<\\d+>}/delete', name: 'app_manifestation_delete', methods: ['POST'])]
+    public function delete(Request $request, ?Manifestation $manifestation, EntityManagerInterface $entityManager): Response
+    {
+        if ($manifestation === null) {
+            return new Response('Manifestation not found.', Response::HTTP_NOT_FOUND);
+        }
         if ($this->isCsrfTokenValid('delete' . $manifestation->getId(), (string) $request->request->get('_token'))) {
             $entityManager->remove($manifestation);
             $entityManager->flush();
@@ -326,4 +367,6 @@ final class ManifestationController extends AbstractController
 
         return $this->redirectToRoute('app_manifestation_index', [], Response::HTTP_SEE_OTHER);
     }
+
+    // normalizeIdentifier moved to repository for shared matching logic
 }

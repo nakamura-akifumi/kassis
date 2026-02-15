@@ -11,13 +11,6 @@
         </div>
         <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_circulation_index') }}">メニューへ</a>
     </div>
-    <div class="alert alert-info small py-2" data-due-date="{{ dueDate ?? '' }}">
-        {% if dueDate %}
-            貸出期限日: {{ dueDate }}（{{ dueDays }}日後）
-        {% else %}
-            貸出期限日は未設定です。
-        {% endif %}
-    </div>
 
     <div class="row g-3">
         <div class="col-lg-6">
@@ -136,6 +129,16 @@
         });
     }
 
+    async function fetchMemberInfo(memberValue) {
+        const response = await fetch('{{ path('app_member_check') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: memberValue }),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+    }
+
     async function setMember() {
         const memberValue = (memberInput.value || '').trim();
         if (!memberValue) {
@@ -143,12 +146,7 @@
             return;
         }
 
-        const response = await fetch('{{ path('app_member_check') }}', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ identifier: memberValue }),
-        });
-        const data = await response.json().catch(() => ({}));
+        const { response, data } = await fetchMemberInfo(memberValue);
         if (!response.ok || !data.exists) {
             setResult(checkoutResult, '利用者が見つかりません。', true);
             setMemberInfo(null);
@@ -240,6 +238,10 @@
         }
         renderCheckoutLog();
         setResult(checkoutResult, '貸出登録完了（' + data.checkoutCount + '件）');
+        const refreshed = await fetchMemberInfo(memberValue);
+        if (refreshed.response.ok && refreshed.data.exists) {
+            setMemberInfo(refreshed.data, memberValue);
+        }
         manifestationInput.value = '';
         manifestationInput.focus();
     }

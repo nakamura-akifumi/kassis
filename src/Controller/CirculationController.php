@@ -27,9 +27,12 @@ class CirculationController extends AbstractController
     }
 
     #[Route('/circulation/reserve', name: 'app_circulation_reserve_page', methods: ['GET'])]
-    public function reservePage(): Response
+    public function reservePage(Request $request): Response
     {
-        return $this->render('circulation/reserve.html.twig');
+        return $this->render('circulation/reserve.html.twig', [
+            'memberIdentifier' => $request->query->get('memberIdentifier'),
+            'manifestationIdentifier' => $request->query->get('manifestationIdentifier'),
+        ]);
     }
 
     #[Route('/circulation/checkout', name: 'app_circulation_checkout_page', methods: ['GET'])]

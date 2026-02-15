@@ -115,3 +115,12 @@ Workflow:
       Lost: "紛失"
       "Pending Discard": "廃棄待ち"
       Discarded: "廃棄済"
+Date:
+  Weekday:
+    Mon: "月"
+    Tue: "火"
+    Wed: "水"
+    Thu: "木"
+    Fri: "金"
+    Sat: "土"
+    Sun: "日"

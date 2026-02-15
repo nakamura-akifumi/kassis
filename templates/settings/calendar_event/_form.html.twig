@@ -9,82 +9,49 @@
             <input class="form-control" type="text" name="summary" value="{{ event.summary ?? '' }}" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">説明</label>
-            <textarea class="form-control" name="description" rows="3">{{ event.description ?? '' }}</textarea>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">場所</label>
-            <input class="form-control" type="text" name="location" value="{{ event.location ?? '' }}">
-        </div>
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="all_day" value="1" id="allDay" {% if event.allDay %}checked{% endif %}>
-            <label class="form-check-label" for="allDay">終日イベント</label>
-        </div>
-        <div class="row g-3 mb-3">
-            <div class="col-md-6">
-                <label class="form-label">開始日（終日）</label>
-                <input class="form-control" type="date" name="start_date" value="{{ event.dtStart ? event.dtStart|date('Y-m-d') : '' }}">
+            <label class="form-label">閉館日設定（終日）</label>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">開始日</label>
+                    <input class="form-control" type="date" name="start_date" value="{{ event.dtStart ? event.dtStart|date('Y-m-d') : '' }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">終了日</label>
+                    <input class="form-control" type="date" name="end_date" value="{% if repeat.enabled and repeat.until %}{{ repeat.until }}{% elseif event.dtEnd %}{{ event.dtEnd|date('Y-m-d') }}{% endif %}">
+                    <div class="form-text">繰り返し有効時は終了日が「繰り返し終了日」として使われます。</div>
+                </div>
             </div>
-            <div class="col-md-6">
-                <label class="form-label">終了日（終日）</label>
-                <input class="form-control" type="date" name="end_date" value="{{ event.dtEnd ? event.dtEnd|date('Y-m-d') : '' }}">
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" name="repeat_enabled" value="1" id="repeatEnabled" {% if repeat.enabled %}checked{% endif %}>
+                <label class="form-check-label" for="repeatEnabled">繰り返す</label>
             </div>
-        </div>
-        <div class="row g-3 mb-3">
-            <div class="col-md-6">
-                <label class="form-label">開始日時</label>
-                <input class="form-control" type="datetime-local" name="start_datetime" value="{{ event.dtStart ? event.dtStart|date('Y-m-d\\TH:i') : '' }}">
+            <div class="mt-2">
+                <label class="form-label">繰り返し頻度</label>
+                <select class="form-select" name="repeat_type" id="repeatType">
+                    <option value="" {% if not repeat.enabled %}selected{% endif %}>選択してください</option>
+                    <option value="daily" {% if repeat.type == 'daily' %}selected{% endif %}>毎日</option>
+                    <option value="weekly" {% if repeat.type == 'weekly' %}selected{% endif %}>毎週</option>
+                    <option value="biweekly" {% if repeat.type == 'biweekly' %}selected{% endif %}>隔週</option>
+                    <option value="monthly" {% if repeat.type == 'monthly' %}selected{% endif %}>毎月</option>
+                    <option value="yearly" {% if repeat.type == 'yearly' %}selected{% endif %}>毎年</option>
+                </select>
             </div>
-            <div class="col-md-6">
-                <label class="form-label">終了日時</label>
-                <input class="form-control" type="datetime-local" name="end_datetime" value="{{ event.dtEnd ? event.dtEnd|date('Y-m-d\\TH:i') : '' }}">
-            </div>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">タイムゾーン (TZID)</label>
-            <input class="form-control" type="text" name="timezone" value="{{ event.timezone ?? '' }}" placeholder="Asia/Tokyo">
-        </div>
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="is_closed" value="1" id="isClosed" {% if event.isClosed %}checked{% endif %}>
-            <label class="form-check-label" for="isClosed">閉館日として扱う</label>
-        </div>
-        <hr>
-        <h2 class="h6">iCal拡張項目</h2>
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">RECURRENCE-ID</label>
-                <input class="form-control" type="datetime-local" name="recurrence_id" value="{{ event.recurrenceId ? event.recurrenceId|date('Y-m-d\\TH:i') : '' }}">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">SEQUENCE</label>
-                <input class="form-control" type="number" name="sequence" value="{{ event.sequence ?? '' }}" min="0">
-            </div>
-        </div>
-        <div class="row g-3 mt-1">
-            <div class="col-md-6">
-                <label class="form-label">STATUS</label>
-                <input class="form-control" type="text" name="status" value="{{ event.status ?? '' }}" placeholder="CONFIRMED">
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">TRANSP</label>
-                <input class="form-control" type="text" name="transparency" value="{{ event.transparency ?? '' }}" placeholder="OPAQUE">
-            </div>
-        </div>
-        <div class="mt-3">
-            <label class="form-label">ORGANIZER</label>
-            <input class="form-control" type="text" name="organizer" value="{{ event.organizer ?? '' }}" placeholder="mailto:info@example.com">
-        </div>
-        <div class="mt-3">
-            <label class="form-label">RRULE</label>
-            <textarea class="form-control" name="rrule" rows="2" placeholder="FREQ=WEEKLY;BYDAY=MO">{{ event.rrule ?? '' }}</textarea>
-        </div>
-        <div class="mt-3">
-            <label class="form-label">RDATE</label>
-            <textarea class="form-control" name="rdate" rows="2">{{ event.rdate ?? '' }}</textarea>
-        </div>
-        <div class="mt-3">
-            <label class="form-label">EXDATE</label>
-            <textarea class="form-control" name="exdate" rows="2">{{ event.exdate ?? '' }}</textarea>
         </div>
     </div>
 </div>
+
+<script>
+    const repeatEnabled = document.getElementById('repeatEnabled');
+    const repeatType = document.getElementById('repeatType');
+
+    function syncRepeatState() {
+        const enabled = repeatEnabled.checked;
+        repeatType.disabled = !enabled;
+        if (!enabled) {
+            repeatType.value = '';
+        }
+    }
+
+    repeatEnabled.addEventListener('change', syncRepeatState);
+    syncRepeatState();
+</script>

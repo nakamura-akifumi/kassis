@@ -15,6 +15,38 @@ class ManifestationRepository extends ServiceEntityRepository
         parent::__construct($registry, Manifestation::class);
     }
 
+    public function findOneByIdentifierNormalized(string $identifier): ?Manifestation
+    {
+        $normalized = $this->normalizeIdentifier($identifier);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $exact = $this->findOneBy(['identifier' => $normalized]);
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        $candidates = $this->createQueryBuilder('m')
+            ->andWhere('m.identifier LIKE :pattern')
+            ->setParameter('pattern', '%' . $normalized . '%')
+            ->setMaxResults(50)
+            ->getQuery()
+            ->getResult();
+
+        foreach ($candidates as $candidate) {
+            $stored = $candidate->getIdentifier();
+            if (!is_string($stored) || $stored === '') {
+                continue;
+            }
+            if ($this->normalizeIdentifier($stored) === $normalized) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
     public function advancedSearch(
         ?string $q,
         ?string $identifier,
@@ -152,5 +184,18 @@ class ManifestationRepository extends ServiceEntityRepository
         }
 
         return $qb->addOrderBy('m.id', 'ASC');
+    }
+
+    private function normalizeIdentifier(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return $value;
+        }
+        $value = strtr($value, [
+            '０' => '0', '１' => '1', '２' => '2', '３' => '3', '４' => '4',
+            '５' => '5', '６' => '6', '７' => '7', '８' => '8', '９' => '9',
+        ]);
+        return preg_replace('/[\\s\\-‐‑‒–—ー－]/u', '', $value) ?? '';
     }
 }

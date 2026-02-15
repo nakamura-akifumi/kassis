@@ -16,7 +16,7 @@
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h2 class="h6">予約</h2>
-                    <p class="text-muted small">利用者とManifestationの識別子を読み取って登録します。</p>
+                    <p class="text-muted small">{{'Model.Member.display_identifier'|trans}}と{{'Model.Manifestation.display_identifier'|trans}}を読み取って登録します。</p>
                     <a class="btn btn-outline-primary w-100" href="{{ path('app_circulation_reserve_page') }}">予約画面へ</a>
                 </div>
             </div>
@@ -34,7 +34,7 @@
             <div class="card h-100 shadow-sm">
                 <div class="card-body">
                     <h2 class="h6">返却</h2>
-                    <p class="text-muted small">Manifestation識別子を読み取って返却登録します。</p>
+                    <p class="text-muted small">{{'Model.Manifestation.display_identifier'|trans}}を読み取って返却登録します。</p>
                     <a class="btn btn-outline-warning w-100" href="{{ path('app_circulation_checkin_page') }}">返却画面へ</a>
                 </div>
             </div>

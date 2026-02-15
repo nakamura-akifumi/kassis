@@ -7,36 +7,100 @@
     <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
             <h1 class="h4 mb-1">予約</h1>
-            <p class="text-muted small mb-0">利用者とManifestation識別子を読み取って登録します。</p>
+            <p class="text-muted small mb-0">利用者と資料をどちらから確定しても予約できます。</p>
         </div>
         <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_circulation_index') }}">貸出・返却へ</a>
     </div>
 
     <div class="row g-3">
-        <div class="col-lg-6">
+        <div class="col-lg-7">
             <div class="card h-100 shadow-sm">
                 <div class="card-header bg-white">
-                    <strong>予約登録</strong>
+                    <strong>予約手続き</strong>
                 </div>
                 <div class="card-body">
-                    <form id="reserve-form">
+                    <form id="reserve-form" action="{{ path('app_circulation_reserve') }}" method="post" novalidate>
                         <div class="mb-3">
                             <label class="form-label">利用者識別子</label>
-                            <input type="text" class="form-control" name="memberIdentifier" required>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="member-input" name="memberIdentifier" value="{{ memberIdentifier|default('') }}">
+                                <button type="button" class="btn btn-outline-secondary" id="member-set">確定</button>
+                            </div>
+                            <div class="form-text">入力後にEnterで確定できます。</div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Manifestation識別子</label>
-                            <input type="text" class="form-control" name="manifestationIdentifier" required>
+                            <label class="form-label">資料識別子</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="manifestation-input" name="manifestationIdentifier" value="{{ manifestationIdentifier|default('') }}">
+                                <button type="button" class="btn btn-outline-secondary" id="manifestation-set">確定</button>
+                            </div>
+                            <div class="form-text">資料詳細画面からの流入にも対応します。</div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">予約期限（任意）</label>
-                            <input type="datetime-local" class="form-control" name="expiryDate">
+                            <input type="datetime-local" class="form-control" id="expiry-input" name="expiryDate">
+                            <div class="form-text">期限を指定する場合はここで確認してください。</div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">予約登録</button>
+                        <div class="mb-3">
+                            <label class="form-label">直近の予約</label>
+                            <div class="border rounded p-2 bg-light small" id="reserve-log">
+                                <span class="text-muted">まだ予約がありません。</span>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" id="reserve-submit" disabled>予約確定</button>
+                        <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="reserve-reset">リセット</button>
                     </form>
                 </div>
                 <div class="card-footer bg-white">
                     <div class="small text-muted" id="reserve-result"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100 shadow-sm mb-3">
+                <div class="card-header bg-white">
+                    <strong>利用者情報</strong>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="text-muted small">氏名</div>
+                        <div class="fw-semibold" id="member-info-name">未確定</div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-muted small">現在の貸出数</div>
+                        <div class="fw-semibold" id="member-info-checkouts">-</div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-muted small">現在の予約数</div>
+                        <div class="fw-semibold" id="member-info-reservations">-</div>
+                    </div>
+                    <div>
+                        <div class="text-muted small">注記</div>
+                        <div class="border rounded p-2 bg-light small" id="member-info-note">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white">
+                    <strong>資料情報</strong>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <div class="text-muted small">タイトル</div>
+                        <div class="fw-semibold" id="manifestation-info-title">未確定</div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-muted small">識別子</div>
+                        <div class="fw-semibold" id="manifestation-info-identifier">-</div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-muted small">分類1</div>
+                        <div class="fw-semibold" id="manifestation-info-type">-</div>
+                    </div>
+                    <div>
+                        <div class="text-muted small">場所</div>
+                        <div class="fw-semibold" id="manifestation-info-location">-</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -46,6 +110,28 @@
 <script>
     const reserveForm = document.getElementById('reserve-form');
     const reserveResult = document.getElementById('reserve-result');
+    const reserveSubmit = document.getElementById('reserve-submit');
+    const reserveReset = document.getElementById('reserve-reset');
+    const reserveLog = document.getElementById('reserve-log');
+    const memberInput = document.getElementById('member-input');
+    const memberSet = document.getElementById('member-set');
+    const manifestationInput = document.getElementById('manifestation-input');
+    const manifestationSet = document.getElementById('manifestation-set');
+    const expiryInput = document.getElementById('expiry-input');
+    const memberInfoName = document.getElementById('member-info-name');
+    const memberInfoCheckouts = document.getElementById('member-info-checkouts');
+    const memberInfoReservations = document.getElementById('member-info-reservations');
+    const memberInfoNote = document.getElementById('member-info-note');
+    const manifestationInfoTitle = document.getElementById('manifestation-info-title');
+    const manifestationInfoIdentifier = document.getElementById('manifestation-info-identifier');
+    const manifestationInfoType = document.getElementById('manifestation-info-type');
+    const manifestationInfoLocation = document.getElementById('manifestation-info-location');
+
+    const reserveState = {
+        member: null,
+        manifestation: null,
+    };
+    const reservedItems = [];
 
     function setResult(target, message, isError = false) {
         target.textContent = message;
@@ -53,15 +139,171 @@
         target.classList.toggle('text-muted', !isError);
     }
 
+    function renderReserveLog() {
+        reserveLog.replaceChildren();
+        if (reservedItems.length === 0) {
+            const span = document.createElement('span');
+            span.className = 'text-muted';
+            span.textContent = 'まだ予約がありません。';
+            reserveLog.appendChild(span);
+            return;
+        }
+        reservedItems.forEach((item) => {
+            const row = document.createElement('div');
+            row.className = 'py-1';
+            const dueLabel = item.expiry ? item.expiry : '未設定';
+            row.textContent = item.manifestation + ' / ' + item.member + ' / 期限: ' + dueLabel;
+            reserveLog.appendChild(row);
+        });
+    }
+
+    function setCookie(name, value, maxAgeSeconds = 21600) {
+        document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAgeSeconds}; path=/`;
+    }
+
+    function clearCookie(name) {
+        document.cookie = `${name}=; max-age=0; path=/`;
+    }
+
+    function getCookie(name) {
+        const pair = document.cookie.split('; ').find((row) => row.startsWith(name + '='));
+        return pair ? decodeURIComponent(pair.split('=')[1]) : '';
+    }
+
+    function updateReserveMode() {
+        if (reserveState.member || reserveState.manifestation) {
+            setCookie('reserve_mode', '1');
+        } else {
+            clearCookie('reserve_mode');
+        }
+        reserveSubmit.disabled = !(reserveState.member && reserveState.manifestation);
+    }
+
+    async function fetchMemberInfo(memberValue) {
+        const response = await fetch('{{ path('app_member_check') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: memberValue }),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+    }
+
+    async function fetchManifestationInfo(identifier) {
+        const response = await fetch('{{ path('app_manifestation_check') }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier }),
+        });
+        const data = await response.json().catch(() => ({}));
+        return { response, data };
+    }
+
+    function setMemberInfo(data, fallbackName = '') {
+        if (!data) {
+            memberInfoName.textContent = '未確定';
+            memberInfoCheckouts.textContent = '-';
+            memberInfoReservations.textContent = '-';
+            memberInfoNote.textContent = '-';
+            return;
+        }
+        memberInfoName.textContent = data.fullName || fallbackName || '未設定';
+        memberInfoCheckouts.textContent = Number.isFinite(data.checkoutCount)
+            ? String(data.checkoutCount)
+            : '-';
+        memberInfoReservations.textContent = Number.isFinite(data.reservationCount)
+            ? String(data.reservationCount)
+            : '-';
+        const note = (data.note || '').trim();
+        memberInfoNote.textContent = note !== '' ? note : 'なし';
+    }
+
+    function setManifestationInfo(data) {
+        if (!data) {
+            manifestationInfoTitle.textContent = '未確定';
+            manifestationInfoIdentifier.textContent = '-';
+            manifestationInfoType.textContent = '-';
+            manifestationInfoLocation.textContent = '-';
+            return;
+        }
+        manifestationInfoTitle.textContent = data.title || '未設定';
+        manifestationInfoIdentifier.textContent = data.identifier || '-';
+        manifestationInfoType.textContent = data.type1 || '-';
+        manifestationInfoLocation.textContent = data.location1 || '-';
+    }
+
+    async function setMember() {
+        const memberValue = (memberInput.value || '').trim();
+        if (!memberValue) {
+            memberInput.focus();
+            return;
+        }
+        const { response, data } = await fetchMemberInfo(memberValue);
+        if (!response.ok || !data.exists) {
+            setResult(reserveResult, '利用者が見つかりません。', true);
+            reserveState.member = null;
+            setMemberInfo(null);
+            updateReserveMode();
+            return;
+        }
+        if (!data.isActive) {
+            setResult(reserveResult, '利用者の状態が有効ではありません。', true);
+            reserveState.member = null;
+            setMemberInfo(null);
+            updateReserveMode();
+            return;
+        }
+        reserveState.member = memberValue;
+        setMemberInfo(data, memberValue);
+        setCookie('reserve_member', memberValue);
+        setResult(reserveResult, '利用者を確定しました。');
+        updateReserveMode();
+    }
+
+    async function setManifestation() {
+        const value = (manifestationInput.value || '').trim();
+        if (!value) {
+            manifestationInput.focus();
+            return;
+        }
+        const { response, data } = await fetchManifestationInfo(value);
+        if (!response.ok || !data.exists) {
+            setResult(reserveResult, '資料が見つかりません。', true);
+            reserveState.manifestation = null;
+            setManifestationInfo(null);
+            updateReserveMode();
+            return;
+        }
+        reserveState.manifestation = value;
+        setManifestationInfo(data);
+        setCookie('reserve_manifestation', value);
+        setResult(reserveResult, '資料を確定しました。');
+        updateReserveMode();
+    }
+
+    function clearReserveState() {
+        reserveForm.reset();
+        reserveState.member = null;
+        reserveState.manifestation = null;
+        setMemberInfo(null);
+        setManifestationInfo(null);
+        clearCookie('reserve_member');
+        clearCookie('reserve_manifestation');
+        updateReserveMode();
+    }
+
     reserveForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const formData = new FormData(reserveForm);
-        const expiryValue = formData.get('expiryDate');
+        if (!reserveState.member || !reserveState.manifestation) {
+            setResult(reserveResult, '利用者と資料を先に確定してください。', true);
+            return;
+        }
+        const expiryValue = expiryInput.value;
         const expiryDate = expiryValue ? Math.floor(new Date(expiryValue).getTime() / 1000) : null;
 
         const payload = {
-            memberIdentifier: formData.get('memberIdentifier'),
-            manifestationIdentifier: formData.get('manifestationIdentifier'),
+            memberIdentifier: reserveState.member,
+            manifestationIdentifier: reserveState.manifestation,
             expiryDate: expiryDate,
         };
 
@@ -70,13 +312,79 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (!response.ok) {
             setResult(reserveResult, data.error || '予約に失敗しました。', true);
             return;
         }
+        const expiryLabel = expiryValue ? expiryValue.replace('T', ' ') : '';
+        reservedItems.unshift({
+            manifestation: reserveState.manifestation,
+            member: reserveState.member,
+            expiry: expiryLabel,
+        });
+        if (reservedItems.length > 20) {
+            reservedItems.pop();
+        }
+        renderReserveLog();
         setResult(reserveResult, '予約登録完了（ステータス: ' + data.reservationStatus + '）');
-        reserveForm.reset();
+        const refreshed = await fetchMemberInfo(reserveState.member);
+        if (refreshed.response.ok && refreshed.data.exists) {
+            setMemberInfo(refreshed.data, reserveState.member);
+        }
+        reserveState.manifestation = null;
+        manifestationInput.value = '';
+        setManifestationInfo(null);
+        clearCookie('reserve_manifestation');
+        updateReserveMode();
+        manifestationInput.focus();
     });
+
+    memberSet.addEventListener('click', (event) => {
+        event.preventDefault();
+        setMember();
+    });
+    manifestationSet.addEventListener('click', (event) => {
+        event.preventDefault();
+        setManifestation();
+    });
+    memberInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        setMember();
+    });
+    manifestationInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        setManifestation();
+    });
+    reserveReset.addEventListener('click', () => {
+        clearReserveState();
+        setResult(reserveResult, '予約状態をリセットしました。');
+        memberInput.focus();
+    });
+
+    function initFromCookie() {
+        const hasMode = getCookie('reserve_mode') === '1';
+        const savedMember = getCookie('reserve_member');
+        const savedManifestation = getCookie('reserve_manifestation');
+
+        if (savedMember && !memberInput.value) {
+            memberInput.value = savedMember;
+        }
+        if (savedManifestation && !manifestationInput.value) {
+            manifestationInput.value = savedManifestation;
+        }
+
+        if (memberInput.value) {
+            setMember();
+        }
+        if (manifestationInput.value) {
+            setManifestation();
+        }
+    }
+
+    renderReserveLog();
+    initFromCookie();
 </script>
 {% endblock %}

@@ -55,6 +55,7 @@ final class CalendarEventController extends AbstractController
 
         return $this->render('settings/calendar_event/new.html.twig', [
             'event' => $event,
+            'repeat' => $this->resolveRepeatSettings($event),
         ]);
     }
 
@@ -81,6 +82,7 @@ final class CalendarEventController extends AbstractController
 
         return $this->render('settings/calendar_event/edit.html.twig', [
             'event' => $event,
+            'repeat' => $this->resolveRepeatSettings($event),
         ]);
     }
 
@@ -310,34 +312,42 @@ final class CalendarEventController extends AbstractController
         if ($summary === '') {
             $errors[] = '件名は必須です。';
         }
-
-        $description = trim((string) $request->request->get('description'));
-        $location = trim((string) $request->request->get('location'));
-        $timezone = trim((string) $request->request->get('timezone'));
-        $isClosed = $request->request->get('is_closed') === '1';
-        $allDay = $request->request->get('all_day') === '1';
-
         $dtStart = null;
         $dtEnd = null;
+        $rrule = null;
 
-        if ($allDay) {
-            $startDate = trim((string) $request->request->get('start_date'));
-            $endDate = trim((string) $request->request->get('end_date'));
-            if ($startDate === '') {
-                $errors[] = '開始日は必須です。';
+        $startDate = trim((string) $request->request->get('start_date'));
+        $endDate = trim((string) $request->request->get('end_date'));
+        if ($startDate === '') {
+            $errors[] = '開始日は必須です。';
+        } else {
+            $dtStart = \DateTimeImmutable::createFromFormat('Y-m-d', $startDate);
+            if ($dtStart === false) {
+                $errors[] = '開始日が不正です。';
             } else {
-                $dtStart = \DateTimeImmutable::createFromFormat('Y-m-d', $startDate);
-                if ($dtStart === false) {
-                    $errors[] = '開始日が不正です。';
-                } else {
-                    $dtStart = $dtStart->setTime(0, 0, 0);
+                $dtStart = $dtStart->setTime(0, 0, 0);
+            }
+        }
+
+        $repeatEnabled = $request->request->get('repeat_enabled') === '1';
+        $repeatType = trim((string) $request->request->get('repeat_type'));
+        if ($repeatEnabled) {
+            if ($endDate !== '' && $dtStart !== null) {
+                $untilCheck = \DateTimeImmutable::createFromFormat('Y-m-d', $endDate);
+                if ($untilCheck === false) {
+                    $errors[] = '終了日が不正です。';
+                } elseif ($untilCheck < $dtStart->setTime(0, 0, 0)) {
+                    $errors[] = '終了日は開始日以降にしてください。';
                 }
             }
-
+            $rrule = $this->buildRepeatRrule($dtStart, $repeatType, $endDate);
+            if ($rrule === null) {
+                $errors[] = '繰り返し設定が不正です。';
+            }
+        } else {
             if ($endDate === '') {
                 $endDate = $startDate;
             }
-
             if ($endDate !== '') {
                 $dtEnd = \DateTimeImmutable::createFromFormat('Y-m-d', $endDate);
                 if ($dtEnd === false) {
@@ -346,48 +356,10 @@ final class CalendarEventController extends AbstractController
                     $dtEnd = $dtEnd->setTime(23, 59, 59);
                 }
             }
-        } else {
-            $startDateTime = trim((string) $request->request->get('start_datetime'));
-            $endDateTime = trim((string) $request->request->get('end_datetime'));
-
-            if ($startDateTime === '') {
-                $errors[] = '開始日時は必須です。';
-            } else {
-                $dtStart = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $startDateTime);
-                if ($dtStart === false) {
-                    $errors[] = '開始日時が不正です。';
-                }
-            }
-
-            if ($endDateTime !== '') {
-                $dtEnd = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $endDateTime);
-                if ($dtEnd === false) {
-                    $errors[] = '終了日時が不正です。';
-                }
-            }
         }
 
         if ($dtStart !== null && $dtEnd !== null && $dtEnd < $dtStart) {
             $errors[] = '終了は開始以降にしてください。';
-        }
-
-        $recurrenceId = null;
-        $recurrenceRaw = trim((string) $request->request->get('recurrence_id'));
-        if ($recurrenceRaw !== '') {
-            $recurrenceId = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $recurrenceRaw);
-            if ($recurrenceId === false) {
-                $errors[] = 'RECURRENCE-IDが不正です。';
-            }
-        }
-
-        $sequence = trim((string) $request->request->get('sequence'));
-        $sequenceValue = null;
-        if ($sequence !== '') {
-            if (!ctype_digit($sequence)) {
-                $errors[] = 'SEQUENCEは整数で入力してください。';
-            } else {
-                $sequenceValue = (int) $sequence;
-            }
         }
 
         if ($errors !== []) {
@@ -396,28 +368,127 @@ final class CalendarEventController extends AbstractController
 
         $event
             ->setSummary($summary)
-            ->setDescription($description !== '' ? $description : null)
-            ->setLocation($location !== '' ? $location : null)
+            ->setDescription(null)
+            ->setLocation(null)
             ->setDtStart($dtStart)
             ->setDtEnd($dtEnd)
-            ->setAllDay($allDay)
-            ->setTimezone($timezone !== '' ? $timezone : null)
-            ->setStatus($this->normalizeOptional((string) $request->request->get('status')))
-            ->setTransparency($this->normalizeOptional((string) $request->request->get('transparency')))
-            ->setOrganizer($this->normalizeOptional((string) $request->request->get('organizer')))
-            ->setSequence($sequenceValue)
-            ->setRrule($this->normalizeOptional((string) $request->request->get('rrule')))
-            ->setRdate($this->normalizeOptional((string) $request->request->get('rdate')))
-            ->setExdate($this->normalizeOptional((string) $request->request->get('exdate')))
-            ->setRecurrenceId($recurrenceId)
-            ->setIsClosed($isClosed);
+            ->setAllDay(true)
+            ->setTimezone(null)
+            ->setStatus(null)
+            ->setTransparency(null)
+            ->setOrganizer(null)
+            ->setSequence(null)
+            ->setRrule($rrule)
+            ->setRdate(null)
+            ->setExdate(null)
+            ->setRecurrenceId(null)
+            ->setIsClosed(true);
 
         return [];
     }
 
-    private function normalizeOptional(string $value): ?string
+    /**
+     * @return array{enabled: bool, type: string, until: ?string}
+     */
+    private function resolveRepeatSettings(CalendarEvent $event): array
     {
-        $value = trim($value);
-        return $value !== '' ? $value : null;
+        $rrule = (string) ($event->getRrule() ?? '');
+        if ($rrule === '') {
+            return ['enabled' => false, 'type' => '', 'until' => null];
+        }
+
+        $freq = '';
+        $interval = 1;
+        $until = null;
+        foreach (explode(';', strtoupper($rrule)) as $part) {
+            if (str_starts_with($part, 'FREQ=')) {
+                $freq = substr($part, 5);
+            }
+            if (str_starts_with($part, 'INTERVAL=')) {
+                $intervalValue = (int) substr($part, 9);
+                if ($intervalValue > 0) {
+                    $interval = $intervalValue;
+                }
+            }
+            if (str_starts_with($part, 'UNTIL=')) {
+                $untilValue = substr($part, 6);
+                $untilDate = \DateTimeImmutable::createFromFormat('Ymd\\THis\\Z', $untilValue, new \DateTimeZone('UTC'));
+                if ($untilDate === false && preg_match('/^\\d{8}$/', $untilValue) === 1) {
+                    $untilDate = \DateTimeImmutable::createFromFormat('Ymd', $untilValue, new \DateTimeZone('UTC'));
+                }
+                if ($untilDate !== false) {
+                    $until = $untilDate->format('Y-m-d');
+                }
+            }
+        }
+
+        $type = match ($freq) {
+            'DAILY' => 'daily',
+            'WEEKLY' => $interval === 2 ? 'biweekly' : 'weekly',
+            'MONTHLY' => 'monthly',
+            'YEARLY' => 'yearly',
+            default => '',
+        };
+
+        return ['enabled' => $type !== '', 'type' => $type, 'until' => $until];
+    }
+
+    private function buildRepeatRrule(?\DateTimeImmutable $dtStart, string $repeatType, string $endDate): ?string
+    {
+        if ($dtStart === null) {
+            return null;
+        }
+
+        $repeatType = strtolower($repeatType);
+        $parts = [];
+        switch ($repeatType) {
+            case 'daily':
+                $parts[] = 'FREQ=DAILY';
+                break;
+            case 'weekly':
+                $parts[] = 'FREQ=WEEKLY';
+                $parts[] = 'BYDAY=' . $this->weekdayToByday($dtStart);
+                break;
+            case 'biweekly':
+                $parts[] = 'FREQ=WEEKLY';
+                $parts[] = 'INTERVAL=2';
+                $parts[] = 'BYDAY=' . $this->weekdayToByday($dtStart);
+                break;
+            case 'monthly':
+                $parts[] = 'FREQ=MONTHLY';
+                $parts[] = 'BYMONTHDAY=' . $dtStart->format('j');
+                break;
+            case 'yearly':
+                $parts[] = 'FREQ=YEARLY';
+                $parts[] = 'BYMONTH=' . $dtStart->format('n');
+                $parts[] = 'BYMONTHDAY=' . $dtStart->format('j');
+                break;
+            default:
+                return null;
+        }
+
+        $endDate = trim($endDate);
+        if ($endDate !== '') {
+            $until = \DateTimeImmutable::createFromFormat('Y-m-d', $endDate);
+            if ($until === false) {
+                return null;
+            }
+            $parts[] = 'UNTIL=' . $until->setTime(23, 59, 59)->setTimezone(new \DateTimeZone('UTC'))->format('Ymd\\THis\\Z');
+        }
+
+        return implode(';', $parts);
+    }
+
+    private function weekdayToByday(\DateTimeImmutable $date): string
+    {
+        return match ((int) $date->format('N')) {
+            1 => 'MO',
+            2 => 'TU',
+            3 => 'WE',
+            4 => 'TH',
+            5 => 'FR',
+            6 => 'SA',
+            7 => 'SU',
+        };
     }
 }

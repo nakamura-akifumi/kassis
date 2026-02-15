@@ -13,6 +13,7 @@ use App\Repository\ManifestationRepository;
 use App\Repository\MemberRepository;
 use App\Repository\ReservationRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\Workflow\WorkflowInterface;
 use Symfony\Component\Workflow\Registry;
@@ -29,6 +30,7 @@ class CirculationService
         private CalendarService $calendarService,
         private Registry $workflowRegistry,
         private TranslatorInterface $translator,
+        private LoggerInterface $logger,
         private ParameterBagInterface $params,
     ) {
     }
@@ -40,7 +42,7 @@ class CirculationService
             throw new \InvalidArgumentException('Member not found.');
         }
 
-        $manifestation = $this->manifestationRepository->findOneBy(['identifier' => $manifestationIdentifier]);
+        $manifestation = $this->manifestationRepository->findOneByIdentifierNormalized($manifestationIdentifier);
         if ($manifestation === null) {
             throw new \InvalidArgumentException('Manifestation not found.');
         }
@@ -69,6 +71,8 @@ class CirculationService
      */
     public function checkout(string $memberIdentifier, array $manifestationIdentifiers): array
     {
+        $this->logger->debug('checkout start');
+
         // a. 対象者(member)のmemberテーブルを検索
         $member = $this->memberRepository->findOneBy(['identifier' => $memberIdentifier]);
         if ($member === null) {
@@ -85,7 +89,7 @@ class CirculationService
 
         foreach ($manifestationIdentifiers as $manifestationIdentifier) {
             // c. 対象のmanifestationのチェック
-            $manifestation = $this->manifestationRepository->findOneBy(['identifier' => $manifestationIdentifier]);
+            $manifestation = $this->manifestationRepository->findOneByIdentifierNormalized($manifestationIdentifier);
             if ($manifestation === null) {
                 throw new \InvalidArgumentException('Manifestation not found: ' . $manifestationIdentifier);
             }
@@ -175,11 +179,20 @@ class CirculationService
             }
 
             // 貸出日付算出
+            $dueDate = null;
             if ($loanCondition !== null) {
+                $this->logger->debug('@1 loan due date calculated:'.var_export($loanCondition, true));
                 $dueDate = $this->calculateDueDate($now, $loanCondition->getLoanPeriod(), $loanCondition->isAdjustDueOnClosedDay());
             } else {
+                $this->logger->debug('@2 loan due date calculated:'.var_export($loanAllGroupCondition, true));
                 $dueDate = $this->calculateDueDate($now, $loanAllGroupCondition->getLoanPeriod(), $loanAllGroupCondition->isAdjustDueOnClosedDay());
             }
+
+            if ($dueDate === null) {
+                throw new \RuntimeException('Loan due date not calculated');
+            }
+
+            $this->logger->debug('Loan due date calculated: ' . $dueDate->format('Y-m-d'));
 
             $checkout = new Checkout();
             $checkout->setMember($member);
@@ -209,7 +222,7 @@ class CirculationService
 
     public function checkIn(string $manifestationIdentifier): ?Checkout
     {
-        $manifestation = $this->manifestationRepository->findOneBy(['identifier' => $manifestationIdentifier]);
+        $manifestation = $this->manifestationRepository->findOneByIdentifierNormalized($manifestationIdentifier);
         if ($manifestation === null) {
             throw new \InvalidArgumentException('Manifestation not found.');
         }
