@@ -17,20 +17,6 @@ final class Version20260212090000 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $this->addSql(<<<'SQL'
-            CREATE TABLE calendar_holiday (
-                id INT AUTO_INCREMENT NOT NULL,
-                holiday_date DATE NOT NULL,
-                name VARCHAR(255) NOT NULL,
-                country_code CHAR(2) NOT NULL,
-                source VARCHAR(64) NOT NULL,
-                created_at DATETIME NOT NULL,
-                updated_at DATETIME NOT NULL,
-                UNIQUE INDEX uniq_calendar_holiday_date_country (holiday_date, country_code),
-                PRIMARY KEY(id)
-            ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB
-        SQL);
-
-        $this->addSql(<<<'SQL'
             CREATE TABLE calendar_event (
                 id INT AUTO_INCREMENT NOT NULL,
                 uid VARCHAR(255) NOT NULL,
@@ -65,6 +51,5 @@ final class Version20260212090000 extends AbstractMigration
     public function down(Schema $schema): void
     {
         $this->addSql('DROP TABLE calendar_event');
-        $this->addSql('DROP TABLE calendar_holiday');
     }
 }
