@@ -10,7 +10,6 @@
         "ext-iconv": "*",
         "ext-simplexml": "*",
         "ext-zip": "*",
-        "azuyalabs/yasumi": "^2.10",
         "sabre/vobject": "^4.5.8",
         "doctrine/dbal": "^3",
         "doctrine/doctrine-bundle": "^2.14",
@@ -41,6 +40,13 @@
         "symfony/maker-bundle": "^1.62"
     },
     "config": {
+        "audit": {
+            "ignore": [
+                "PKSA-64jn-3d9t-gncx",
+                "PKSA-365x-2zjk-pt47",
+                "PKSA-z3gr-8qht-p93v"
+            ]
+        },
         "allow-plugins": {
             "php-http/discovery": true,
             "symfony/flex": true,
