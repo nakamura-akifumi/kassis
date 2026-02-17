@@ -1,0 +1,35 @@
+parameters:
+    app.amazon_import.book_only: true
+    app.amazon_import.use_ndl: true
+    app.amazon_import.create_manifestation_status: Available
+    app.enabled_display_modes: grid, list, panel, map
+    app.default_display_mode: grid
+    app.manifestation.identifier_rule: random # uuidv7,numbering,isbn+random(4)
+    app.manifestation.identifier_format: '%010d'
+    app.manifestation.type1.use_code: true
+    app.manifestation.type2.use_code: true
+    app.manifestation.type3.use_code: true
+    app.manifestation.type4.use_code: true
+    app.manifestation.location1.use_code: true
+    app.manifestation.location2.use_code: true
+    app.manifestation.type1.export_display_name: true
+    app.manifestation.type2.export_display_name: true
+    app.manifestation.type3.export_display_name: true
+    app.manifestation.type4.export_display_name: true
+    app.manifestation.search_limits:
+        list: 100
+        panel: 20
+        grid: 1000
+        map: 100
+    app.member.expiry_days: 1095
+    app.manifestation.loan_restriction: ['public', 'restricted']
+    app.code.types: ['manifestation_type1', 'manifestation_type2', 'manifestation_type3', 'manifestation_type4', 'manifestation_location1','manifestation_location2','checkout_max_loans', 'checkout_max_renewals', 'checkout_due_date']
+    app.member.group1: ['standard', 'vip', 'guest']
+    app.member.status: ['active', 'inactive', 'expired']
+    app.member.role: ['member','staff','admin']
+    app.loan_condition.defaults:
+        loan_limit: 5
+        loan_period: 7
+        renew_limit: 1
+        reservation_limit: 3
+        adjust_due_on_closed_day: false

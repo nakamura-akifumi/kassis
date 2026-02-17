@@ -158,6 +158,21 @@ class AmazonImportService
         return $result;
     }
 
+    private function getDefaultRestrictedLoanRestriction(): ?string
+    {
+        $values = $this->params->has('app.manifestation.loan_restriction')
+            ? (array) $this->params->get('app.manifestation.loan_restriction')
+            : [];
+        $values = array_values(array_filter($values, static fn($value) => trim((string) $value) !== ''));
+        if ($values === []) {
+            return null;
+        }
+        if (in_array('restricted', $values, true)) {
+            return 'restricted';
+        }
+        return $values[0] ?? null;
+    }
+
     private function findCsvFilesRecursively(string $directory): array
     {
         $csvFiles = [];
@@ -408,6 +423,11 @@ class AmazonImportService
                     $contributor2 = $data[$contributor2Index];
                 }
 
+                $status1 = null;
+                if ($this->params->has('app.amazon_import.create_manifestation_status')) {
+                    $status1 = $this->params->get('app.amazon_import.create_manifestation_status');
+                }
+
                 // Manifestationエンティティを作成
                 if ($manifestation === null) {
                     $manifestation = new Manifestation();
@@ -424,7 +444,7 @@ class AmazonImportService
                 }
                 $manifestation->setPrice($price);
                 $manifestation->setPriceCurrency($priceCurrency);
-                $manifestation->setStatus1('New');
+                $manifestation->setStatus1($status1);
                 if ($contributor2 !== null) {
                     $manifestation->setContributor2($contributor2);
                 }
@@ -443,7 +463,7 @@ class AmazonImportService
                         }
                     }
                     if ($manifestation->getLoanRestriction() === null) {
-                        $manifestation->setLoanRestriction("貸出禁止");
+                        $manifestation->setLoanRestriction($this->getDefaultRestrictedLoanRestriction());
                     }
                 }
 

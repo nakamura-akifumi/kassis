@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\String\Slugger\SluggerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 #[Route('/manifestation')]
 final class ManifestationController extends AbstractController
@@ -107,10 +108,13 @@ final class ManifestationController extends AbstractController
     }
 
     #[Route('/new', name: 'app_manifestation_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): Response
+    public function new(Request $request, EntityManagerInterface $entityManager, ParameterBagInterface $params, TranslatorInterface $translator): Response
     {
         $manifestation = new Manifestation();
-        $form = $this->createForm(ManifestationType::class, $manifestation);
+        $loanRestrictionChoices = $this->buildLoanRestrictionChoices($params, $translator);
+        $form = $this->createForm(ManifestationType::class, $manifestation, [
+            'loan_restriction_choices' => $loanRestrictionChoices,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -263,12 +267,15 @@ final class ManifestationController extends AbstractController
     }
 
     #[Route('/{id<\\d+>}/edit', name: 'app_manifestation_edit', methods: ['GET', 'POST'])]
-    public function edit(Request $request, ?Manifestation $manifestation, EntityManagerInterface $entityManager): Response
+    public function edit(Request $request, ?Manifestation $manifestation, EntityManagerInterface $entityManager, ParameterBagInterface $params, TranslatorInterface $translator): Response
     {
         if ($manifestation === null) {
             return new Response('Manifestation not found.', Response::HTTP_NOT_FOUND);
         }
-        $form = $this->createForm(ManifestationType::class, $manifestation);
+        $loanRestrictionChoices = $this->buildLoanRestrictionChoices($params, $translator);
+        $form = $this->createForm(ManifestationType::class, $manifestation, [
+            'loan_restriction_choices' => $loanRestrictionChoices,
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -369,4 +376,25 @@ final class ManifestationController extends AbstractController
     }
 
     // normalizeIdentifier moved to repository for shared matching logic
+
+    /**
+     * @return array<string, string>
+     */
+    private function buildLoanRestrictionChoices(ParameterBagInterface $params, TranslatorInterface $translator): array
+    {
+        $values = $params->has('app.manifestation.loan_restriction')
+            ? (array) $params->get('app.manifestation.loan_restriction')
+            : [];
+        $values = array_values(array_filter($values, static fn($value) => trim((string) $value) !== ''));
+        $choices = [];
+        foreach ($values as $value) {
+            $key = 'Model.Manifestation.values.LoanRestriction.' . $value;
+            $label = $translator->trans($key);
+            if ($label === $key) {
+                $label = $value;
+            }
+            $choices[$label] = $value;
+        }
+        return $choices;
+    }
 }

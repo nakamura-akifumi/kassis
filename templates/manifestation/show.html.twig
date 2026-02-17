@@ -270,7 +270,13 @@
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.LoanRestriction' | trans }}</th>
-                            <td>{{ manifestation.loanRestriction }}</td>
+                            {% if manifestation.loanRestriction %}
+                                {% set loanKey = 'Model.Manifestation.values.LoanRestriction.' ~ manifestation.loanRestriction %}
+                                {% set loanLabel = loanKey|trans %}
+                                <td>{{ loanLabel == loanKey ? manifestation.loanRestriction : loanLabel }}</td>
+                            {% else %}
+                                <td>-</td>
+                            {% endif %}
                         </tr>
                         <tr>
                             <th>{{ 'Model.Manifestation.fields.Class1' | trans }}</th>

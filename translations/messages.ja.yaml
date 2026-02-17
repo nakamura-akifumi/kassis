@@ -37,8 +37,9 @@ Model:
     not_found: "該当する資料が見つかりませんでした"
     values:
       LoanRestriction:
-        None: "なし"
-
+        none: "なし"
+        public: "通常貸出"
+        restricted: "貸出禁止"
     fields:
       Id: "ID"
       Title: "タイトル"

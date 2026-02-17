@@ -6,11 +6,13 @@ use App\Entity\LoanCondition;
 use App\Entity\LoanGroup;
 use App\Repository\LoanConditionRepository;
 use App\Repository\LoanGroupRepository;
+use App\Service\LoanConditionFileService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
@@ -35,6 +37,62 @@ final class LoanConditionController extends AbstractController
             'loanGroups' => $loanGroups,
             'memberGroupOptions' => $memberGroupOptions,
         ]);
+    }
+
+    #[Route('/export', name: 'app_settings_loan_condition_export', methods: ['GET'])]
+    public function export(
+        Request $request,
+        LoanConditionRepository $loanConditionRepository,
+        LoanConditionFileService $fileService,
+        TranslatorInterface $translator
+    ): Response {
+        $format = (string) $request->query->get('format', 'xlsx');
+        if (!in_array($format, ['xlsx', 'csv'], true)) {
+            $format = 'xlsx';
+        }
+
+        $conditions = $loanConditionRepository->findBy([], ['id' => 'DESC']);
+        $allGroupLabel = $this->getAllGroupLabel($translator);
+        $tempFile = $fileService->generateExportFile($conditions, $format, $allGroupLabel);
+        $fileName = 'loan_conditions_' . date('Y-m-d_H-i-s') . ($format === 'csv' ? '.csv' : '.xlsx');
+
+        return $this->file($tempFile, $fileName, ResponseHeaderBag::DISPOSITION_ATTACHMENT);
+    }
+
+    #[Route('/import', name: 'app_settings_loan_condition_import', methods: ['POST'])]
+    public function import(
+        Request $request,
+        LoanConditionFileService $fileService,
+        ParameterBagInterface $params,
+        TranslatorInterface $translator
+    ): Response {
+        if (!$this->isCsrfTokenValid('loan_condition_import', (string) $request->request->get('_token'))) {
+            $this->addFlash('danger', '不正なリクエストです。');
+            return $this->redirectToRoute('app_settings_loan_condition');
+        }
+
+        $uploadFile = $request->files->get('uploadFile');
+        if ($uploadFile === null) {
+            $this->addFlash('danger', 'ファイルを選択してください。');
+            return $this->redirectToRoute('app_settings_loan_condition');
+        }
+
+        $memberGroupOptions = $this->buildMemberGroupChoices($params, $translator);
+        $allGroupLabel = $this->getAllGroupLabel($translator);
+        $result = $fileService->importFromFile($uploadFile, $memberGroupOptions, $allGroupLabel);
+
+        if ($result['errors'] > 0) {
+            $this->addFlash('danger', 'インポート中にエラーが発生しました。結果を確認してください。');
+            foreach ($result['errorMessages'] as $message) {
+                $this->addFlash('danger', $message);
+            }
+        } elseif ($result['created'] > 0 || $result['updated'] > 0) {
+            $this->addFlash('success', sprintf('インポート完了: 新規 %d件 / 更新 %d件（スキップ: %d件）', $result['created'], $result['updated'], $result['skipped']));
+        } else {
+            $this->addFlash('warning', 'インポート対象がありませんでした。');
+        }
+
+        return $this->redirectToRoute('app_settings_loan_condition');
     }
 
     #[Route('/create', name: 'app_settings_loan_condition_create', methods: ['POST'])]

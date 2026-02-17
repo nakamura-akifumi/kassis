@@ -140,10 +140,7 @@ class ManifestationType extends AbstractType
             ])
             ->add('loan_restriction', ChoiceType::class, [
                 'required' => false,
-                'choices' => [
-                    '通常貸出' => '通常貸出',
-                    '貸出禁止' => '貸出禁止',
-                ],
+                'choices' => $options['loan_restriction_choices'],
                 'placeholder' => '選択してください',
             ])
         ;
@@ -154,6 +151,7 @@ class ManifestationType extends AbstractType
         $resolver->setDefaults([
             'data_class' => Manifestation::class,
             'validation_groups' => ['Default'],
+            'loan_restriction_choices' => [],
         ]);
     }
 
