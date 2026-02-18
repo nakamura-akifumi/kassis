@@ -4,12 +4,10 @@ namespace App\Controller;
 
 use App\Entity\Code;
 use App\Repository\CodeRepository;
-use App\Service\CodeFileService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/settings/code')]
@@ -39,57 +37,6 @@ class CodeController extends AbstractController
         ]);
     }
 
-    #[Route('/file', name: 'app_settings_code_file', methods: ['GET'])]
-    public function filePage(): Response
-    {
-        return $this->render('settings/code_file.html.twig');
-    }
-
-    #[Route('/export', name: 'app_settings_code_export', methods: ['GET'])]
-    public function export(Request $request, CodeRepository $codeRepository, CodeFileService $codeFileService): Response
-    {
-        $format = (string) $request->query->get('format', 'xlsx');
-        if (!in_array($format, ['xlsx', 'csv'], true)) {
-            $format = 'xlsx';
-        }
-
-        $codes = $codeRepository->findBy([], ['type' => 'ASC', 'display_order' => 'ASC', 'identifier' => 'ASC']);
-        $tempFile = $codeFileService->generateExportFile($codes, $format);
-        $fileName = 'codes_' . date('Y-m-d_H-i-s') . ($format === 'csv' ? '.csv' : '.xlsx');
-
-        return $this->file($tempFile, $fileName, ResponseHeaderBag::DISPOSITION_ATTACHMENT);
-    }
-
-    #[Route('/import', name: 'app_settings_code_import', methods: ['POST'])]
-    public function import(Request $request, CodeFileService $codeFileService, \Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface $params): Response
-    {
-        if (!$this->isCsrfTokenValid('code_import', (string) $request->request->get('_token'))) {
-            $this->addFlash('danger', '不正なリクエストです。');
-            return $this->redirectToRoute('app_settings_code');
-        }
-
-        $uploadFile = $request->files->get('uploadFile');
-        if ($uploadFile === null) {
-            $this->addFlash('danger', 'ファイルを選択してください。');
-            return $this->redirectToRoute('app_settings_code');
-        }
-
-        $typeOptions = $params->has('app.code.types') ? (array) $params->get('app.code.types') : [];
-        $result = $codeFileService->importCodesFromFile($uploadFile, $typeOptions);
-
-        if ($result['errors'] > 0) {
-            $this->addFlash('danger', 'インポート中にエラーが発生しました。結果を確認してください。');
-            foreach ($result['errorMessages'] as $message) {
-                $this->addFlash('danger', $message);
-            }
-        } elseif ($result['created'] > 0 || $result['updated'] > 0) {
-            $this->addFlash('success', sprintf('インポート完了: 新規 %d件 / 更新 %d件（スキップ: %d件）', $result['created'], $result['updated'], $result['skipped']));
-        } else {
-            $this->addFlash('warning', 'インポート対象がありませんでした。');
-        }
-
-        return $this->redirectToRoute('app_settings_code');
-    }
 
     #[Route('/create', name: 'app_settings_code_create', methods: ['POST'])]
     public function create(Request $request, CodeRepository $codeRepository, EntityManagerInterface $entityManager, \Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface $params): Response

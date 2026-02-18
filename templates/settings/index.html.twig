@@ -15,6 +15,22 @@
     </div>
 
     <div class="row g-3">
+        <div class="col-12">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">設定一括インポート / エクスポート</h2>
+                    <p class="text-muted small mb-2">コード・貸出グループ・貸出条件をまとめて処理します（Excelのみ）。シート名は「コード設定」「貸出グループ」「貸出条件」です。</p>
+                    <div class="d-flex flex-wrap gap-2 align-items-center" style="height: 2.5rem;">
+                        <a class="btn btn-outline-primary btn-sm px-3 py-2 d-inline-flex align-items-center justify-content-center" style="height: 80%; min-width: 140px;" href="{{ path('app_settings_export') }}">Excel出力</a>
+                        <form method="post" action="{{ path('app_settings_import') }}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+                            <input type="hidden" name="_token" value="{{ csrf_token('settings_import') }}">
+                            <input class="form-control form-control-sm" type="file" name="uploadFile" accept=".xlsx" required>
+                            <button type="submit" class="btn btn-outline-secondary btn-sm px-3 py-2 d-inline-flex align-items-center justify-content-center" style="height: 80%; min-width: 142px;">インポート</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="col-md-6">
             <div class="card shadow-sm h-100">
                 <div class="card-body">

@@ -1,0 +1,97 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}受入{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">受入</h1>
+            <p class="text-muted small mb-0">発注済み資料を受入済みにします。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_acquisition_index') }}">発注受入管理へ</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <strong>発注の選択</strong>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{{ path('app_acquisition_receive') }}" class="row g-2 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label small mb-1" for="order-select">発注</label>
+                    <select class="form-select form-select-sm" id="order-select" name="order_id">
+                        {% for order in orders %}
+                            <option value="{{ order.id }}" {% if selectedOrder and order.id == selectedOrder.id %}selected{% endif %}>
+                                {{ order.orderNumber }} / {{ order.status }} / {{ order.orderedAt ? order.orderedAt|date('Y-m-d H:i') : '' }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-outline-primary btn-sm w-100">切替</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <strong>受入登録</strong>
+        </div>
+        <div class="card-body">
+            {% if selectedOrder %}
+                <form method="post" action="{{ path('app_acquisition_receive_submit') }}" class="row g-2 align-items-end">
+                    <input type="hidden" name="order_id" value="{{ selectedOrder.id }}">
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1" for="manifestation-identifier">資料識別子</label>
+                        <input type="text" class="form-control form-control-sm" id="manifestation-identifier" name="manifestation_identifier" required autofocus>
+                        <div class="form-text">バーコードリーダーで読み取り後、Enterで送信してください。</div>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">受入</button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="small text-muted">対象の発注がありません。</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <strong>発注明細</strong>
+        </div>
+        <div class="card-body p-0">
+            {% if not selectedOrder %}
+                <div class="p-3 small text-muted">対象の発注がありません。</div>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>識別子</th>
+                                <th>タイトル</th>
+                                <th>状態</th>
+                                <th>受入日時</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in selectedOrder.items %}
+                                <tr>
+                                    <td>{{ item.manifestation.identifier }}</td>
+                                    <td>{{ item.manifestation.title }}</td>
+                                    <td>{{ item.manifestation.status1 }}</td>
+                                    <td>{{ item.receivedAt ? item.receivedAt|date('Y-m-d H:i') : '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

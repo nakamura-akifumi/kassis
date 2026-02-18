@@ -17,6 +17,7 @@ Menu:
   MemberIndex: "利用者"
   Settings: "設定"
   LoanGroup: "貸出グループ"
+  Acquisition: "発注受入管理"
 Screen:
   Manifestation:
     Index: "資料一覧"

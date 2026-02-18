@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}発注受入管理{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">発注受入管理</h1>
+            <p class="text-muted small mb-0">選書・発注・受入の各機能へ移動します。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_home') }}">ホームへ</a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white">
+                    <strong>選書</strong>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">状態がNewの資料を発注待ちにします。</p>
+                    <a class="btn btn-primary btn-sm" href="{{ path('app_acquisition_selection') }}">選書画面へ</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white">
+                    <strong>発注</strong>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">発注待ちの資料を発注済みにします。</p>
+                    <a class="btn btn-primary btn-sm" href="{{ path('app_acquisition_order') }}">発注画面へ</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-white">
+                    <strong>受入</strong>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">発注済み資料を受入済みにします。</p>
+                    <a class="btn btn-primary btn-sm" href="{{ path('app_acquisition_receive') }}">受入画面へ</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
