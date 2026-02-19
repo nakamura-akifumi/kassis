@@ -25,4 +25,36 @@ class ManifestationOrderItemRepository extends ServiceEntityRepository
             'manifestation' => $manifestation,
         ]);
     }
+
+    /**
+     * @return ManifestationOrderItem[]
+     */
+    public function findAwaitingByOrder(ManifestationOrder $order): array
+    {
+        return $this->createQueryBuilder('i')
+            ->join('i.manifestation', 'm')
+            ->addSelect('m')
+            ->andWhere('i.order = :order')
+            ->andWhere('m.status1 = :status')
+            ->setParameter('order', $order)
+            ->setParameter('status', 'Awaiting Order')
+            ->orderBy('m.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return ManifestationOrderItem[]
+     */
+    public function findByOrderWithManifestations(ManifestationOrder $order): array
+    {
+        return $this->createQueryBuilder('i')
+            ->join('i.manifestation', 'm')
+            ->addSelect('m')
+            ->andWhere('i.order = :order')
+            ->setParameter('order', $order)
+            ->orderBy('i.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

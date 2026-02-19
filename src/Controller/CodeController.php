@@ -96,6 +96,7 @@ class CodeController extends AbstractController
 
         $type = trim((string) $request->request->get('type'));
         $identifier = trim((string) $request->request->get('identifier'));
+        $newIdentifier = trim((string) $request->request->get('new_identifier'));
         $value = $request->request->get('value');
         $displayname = trim((string) $request->request->get('displayname'));
         $displayOrder = (int) $request->request->get('display_order', 0);
@@ -106,9 +107,23 @@ class CodeController extends AbstractController
             return $this->redirectToRoute('app_settings_code');
         }
 
+        if ($newIdentifier === '') {
+            $this->addFlash('danger', '識別子は必須です。');
+            return $this->redirectToRoute('app_settings_code');
+        }
+
         if ($value === null || $value === '') {
             $this->addFlash('danger', '値は必須です。');
             return $this->redirectToRoute('app_settings_code');
+        }
+
+        if ($newIdentifier !== $identifier) {
+            $existing = $codeRepository->findOneBy(['type' => $type, 'identifier' => $newIdentifier]);
+            if ($existing !== null) {
+                $this->addFlash('danger', '同じ種別と識別子のコードが既に存在します。');
+                return $this->redirectToRoute('app_settings_code');
+            }
+            $code->setIdentifier($newIdentifier);
         }
 
         $code->setValue((string) $value);

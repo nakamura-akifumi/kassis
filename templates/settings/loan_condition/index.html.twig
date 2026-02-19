@@ -88,8 +88,16 @@
                     <table class="table table-sm table-striped align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>貸出グループ</th>
-                                <th>利用者グループ</th>
+                                <th>
+                                    <a class="text-decoration-none text-dark" href="{{ path('app_settings_loan_condition', {sort: 'group'}) }}">
+                                        貸出グループ <i class="fas fa-sort-up ms-1"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a class="text-decoration-none text-dark" href="{{ path('app_settings_loan_condition', {sort: 'member'}) }}">
+                                        利用者グループ <i class="fas fa-sort-up ms-1"></i>
+                                    </a>
+                                </th>
                                 <th>貸出数上限</th>
                                 <th>貸出期間</th>
                                 <th>更新回数上限</th>

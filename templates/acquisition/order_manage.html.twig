@@ -1,0 +1,63 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}発注管理{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">発注管理</h1>
+            <p class="text-muted small mb-0">発注書の更新と削除を行います。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_acquisition_index') }}">発注受入管理へ</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <strong>発注書一覧</strong>
+        </div>
+        <div class="card-body p-0">
+            {% if orders is empty %}
+                <div class="p-3 small text-muted">発注書がありません。</div>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>発注番号</th>
+                                <th>発注先</th>
+                                <th>金額</th>
+                                <th>納品予定日</th>
+                                <th>状態</th>
+                                <th>出力</th>
+                                <th class="text-end">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in orders %}
+                                <tr>
+                                    <td>{{ order.orderNumber }}</td>
+                                    <td>{{ order.vendor ?? '-' }}</td>
+                                    <td>{{ order.orderAmount ?? '-' }}</td>
+                                    <td>{{ order.deliveryDueDate ? order.deliveryDueDate|date('Y-m-d') : '-' }}</td>
+                                    <td>{{ order.status }}</td>
+                                    <td>{{ order.exportedAt ? '出力済' : '-' }}</td>
+                                    <td class="text-end">
+                                        <a class="btn btn-outline-primary btn-sm" href="{{ path('app_acquisition_order_edit', {id: order.id}) }}">編集</a>
+                                        <form method="post" action="{{ path('app_acquisition_order_delete', {id: order.id}) }}" class="d-inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('order_delete_' ~ order.id) }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('削除しますか？')">削除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -19,21 +19,24 @@ final class LoanConditionController extends AbstractController
 {
     #[Route('', name: 'app_settings_loan_condition', methods: ['GET'])]
     public function index(
+        Request $request,
         LoanConditionRepository $loanConditionRepository,
         LoanGroupRepository $loanGroupRepository,
         ParameterBagInterface $params,
         TranslatorInterface $translator
     ): Response {
-        $conditions = $loanConditionRepository->findBy([], ['id' => 'DESC']);
+        $sort = (string) ($request->query->get('sort') ?? '');
         $loanGroups = $loanGroupRepository->findBy([], ['name' => 'ASC']);
         $allGroupLabel = $this->getAllGroupLabel($translator);
         $loanGroups = $this->filterOutAllGroup($loanGroups, $allGroupLabel);
         $memberGroupOptions = $this->buildMemberGroupChoices($params, $translator);
+        $conditions = $loanConditionRepository->findAllSorted($sort === 'member' ? 'member' : 'group', $allGroupLabel);
 
         return $this->render('settings/loan_condition/index.html.twig', [
             'conditions' => $conditions,
             'loanGroups' => $loanGroups,
             'memberGroupOptions' => $memberGroupOptions,
+            'sort' => $sort,
         ]);
     }
 

@@ -67,6 +67,7 @@
                     <input type="hidden" name="_token" value="{{ csrf_token('code_update') }}">
                     <input type="hidden" name="type">
                     <input type="hidden" name="identifier">
+                    <input type="hidden" name="new_identifier">
                     <input type="hidden" name="value">
                     <input type="hidden" name="displayname">
                     <input type="hidden" name="display_order">
@@ -76,6 +77,39 @@
                     <input type="hidden" name="type">
                     <input type="hidden" name="identifier">
                 </form>
+                <div class="modal fade" id="code-edit-modal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">コード編集</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label small" for="code-edit-identifier">識別子</label>
+                                    <input type="text" class="form-control form-control-sm" id="code-edit-identifier" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small" for="code-edit-value">値</label>
+                                    <input type="text" class="form-control form-control-sm" id="code-edit-value" maxlength="32" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small" for="code-edit-displayname">表示名</label>
+                                    <input type="text" class="form-control form-control-sm" id="code-edit-displayname">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small" for="code-edit-displayorder">表示順</label>
+                                    <input type="number" class="form-control form-control-sm" id="code-edit-displayorder" min="0" step="1">
+                                </div>
+                                <div class="small text-muted" id="code-edit-meta"></div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">キャンセル</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="code-edit-save">保存</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
         </div>
     </div>
@@ -122,38 +156,68 @@
 
         const typeOptions = {{ typeOptions|default([])|json_encode|raw }};
 
+        const editModalEl = document.getElementById('code-edit-modal');
+        let editModal = null;
+        const editIdentifierInput = document.getElementById('code-edit-identifier');
+        const editValueInput = document.getElementById('code-edit-value');
+        const editDisplaynameInput = document.getElementById('code-edit-displayname');
+        const editDisplayOrderInput = document.getElementById('code-edit-displayorder');
+        const editMeta = document.getElementById('code-edit-meta');
+        const editSave = document.getElementById('code-edit-save');
+        let editingRecord = null;
+
         function submitUpdate(record) {
-            if (!updateForm) return;
-            const currentValue = record.value ?? '';
-            const currentDisplayname = record.displayname ?? '';
-            const currentDisplayOrder = record.displayOrder ?? 0;
+            if (!updateForm || !editModalEl) return;
             const currentType = record.type ?? '';
             if (typeOptions.length > 0 && !typeOptions.includes(currentType)) {
                 alert('種別が不正です。');
                 return;
             }
-            const newValue = window.prompt('値を入力してください', currentValue);
-            if (newValue === null) return;
-            if (String(newValue).trim() === '') {
-                alert('値は必須です。');
+            if (!editModal && window.bootstrap) {
+                editModal = new window.bootstrap.Modal(editModalEl);
+            }
+            if (!editModal) {
+                alert('画面初期化中です。少し待ってから再度お試しください。');
                 return;
             }
+            editingRecord = record;
+            editIdentifierInput.value = record.identifier ?? '';
+            editValueInput.value = record.value ?? '';
+            editDisplaynameInput.value = record.displayname ?? '';
+            editDisplayOrderInput.value = String(record.displayOrder ?? 0);
+            editMeta.textContent = `${record.type ?? ''} / ${record.identifier ?? ''}`;
+            editModal.show();
+        }
+
+        if (editSave) {
+            editSave.addEventListener('click', () => {
+                if (!editingRecord || !updateForm) return;
+                const newIdentifier = editIdentifierInput.value ?? '';
+                const newValue = editValueInput.value ?? '';
+                if (String(newIdentifier).trim() === '') {
+                    alert('識別子は必須です。');
+                    return;
+                }
+                if (String(newValue).trim() === '') {
+                    alert('値は必須です。');
+                    return;
+                }
                 if (String(newValue).length > 32) {
                     alert('値は32文字以内で入力してください。');
                     return;
                 }
-                const newDisplayname = window.prompt('表示名を入力してください（空欄可）', currentDisplayname ?? '');
-                if (newDisplayname === null) return;
-                const newDisplayOrder = window.prompt('表示順を入力してください', String(currentDisplayOrder));
-                if (newDisplayOrder === null) return;
+                const newDisplayname = editDisplaynameInput.value ?? '';
+                const newDisplayOrder = editDisplayOrderInput.value ?? '0';
 
-                updateForm.querySelector('input[name="type"]').value = record.type || '';
-                updateForm.querySelector('input[name="identifier"]').value = record.identifier || '';
+                updateForm.querySelector('input[name="type"]').value = editingRecord.type || '';
+                updateForm.querySelector('input[name="identifier"]').value = editingRecord.identifier || '';
+                updateForm.querySelector('input[name="new_identifier"]').value = String(newIdentifier);
                 updateForm.querySelector('input[name="value"]').value = String(newValue);
                 updateForm.querySelector('input[name="displayname"]').value = String(newDisplayname);
                 updateForm.querySelector('input[name="display_order"]').value = String(newDisplayOrder);
                 updateForm.submit();
-            }
+            });
+        }
 
             function submitDelete(record) {
                 if (!deleteForm) return;

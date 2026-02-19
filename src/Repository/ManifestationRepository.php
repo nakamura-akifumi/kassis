@@ -7,6 +7,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\QueryBuilder;
 use App\Service\ManifestationSearchQuery;
+use App\Entity\ManifestationOrderItem;
 
 class ManifestationRepository extends ServiceEntityRepository
 {
@@ -184,6 +185,21 @@ class ManifestationRepository extends ServiceEntityRepository
         }
 
         return $qb->addOrderBy('m.id', 'ASC');
+    }
+
+    /**
+     * @return Manifestation[]
+     */
+    public function findNewWithoutOrder(): array
+    {
+        return $this->createQueryBuilder('m')
+            ->leftJoin(ManifestationOrderItem::class, 'moi', 'WITH', 'moi.manifestation = m')
+            ->andWhere('m.status1 = :status')
+            ->andWhere('moi.id IS NULL')
+            ->setParameter('status', 'New')
+            ->orderBy('m.id', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     private function normalizeIdentifier(string $value): string

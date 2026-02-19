@@ -15,13 +15,42 @@
     </div>
 
     <form method="post" action="{{ path('app_acquisition_selection_submit') }}">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white">
+                <strong>発注書の選択</strong>
+            </div>
+            <div class="card-body">
+                {% if orders is empty %}
+                    <div class="small text-muted">In Progress の発注書がありません。先に発注書を作成してください。</div>
+                {% else %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1" for="order-select">発注書</label>
+                            <select class="form-select form-select-sm" id="order-select" name="order_id" required>
+                                {% for order in orders %}
+                                    <option value="{{ order.id }}" {% if selectedOrder and order.id == selectedOrder.id %}selected{% endif %}>
+                                        {{ order.orderNumber }} / {{ order.status }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <a class="btn btn-outline-secondary btn-sm w-100" href="{{ path('app_acquisition_selection', {order_id: selectedOrder ? selectedOrder.id : null}) }}">更新</a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="card shadow-sm">
             <div class="card-header bg-white d-flex align-items-center justify-content-between">
                 <strong>New一覧</strong>
                 <button type="submit" class="btn btn-primary btn-sm">発注待ちにする</button>
             </div>
             <div class="card-body p-0">
-                {% if manifestations is empty %}
+                {% if orders is empty %}
+                    <div class="p-3 small text-muted">発注書が無いため選書できません。</div>
+                {% elseif manifestations is empty %}
                     <div class="p-3 small text-muted">対象がありません。</div>
                 {% else %}
                     <div class="table-responsive">
@@ -51,4 +80,16 @@
         </div>
     </form>
 </div>
+{% if orders is not empty %}
+    <script>
+        const selectionOrderSelect = document.getElementById('order-select');
+        if (selectionOrderSelect) {
+            selectionOrderSelect.addEventListener('change', () => {
+                const value = selectionOrderSelect.value;
+                if (!value) return;
+                window.location.href = '{{ path('app_acquisition_selection') }}' + '?order_id=' + encodeURIComponent(value);
+            });
+        }
+    </script>
+{% endif %}
 {% endblock %}

@@ -25,7 +25,7 @@
                     <select class="form-select form-select-sm" id="order-select" name="order_id">
                         {% for order in orders %}
                             <option value="{{ order.id }}" {% if selectedOrder and order.id == selectedOrder.id %}selected{% endif %}>
-                                {{ order.orderNumber }} / {{ order.status }} / {{ order.orderedAt ? order.orderedAt|date('Y-m-d H:i') : '' }}
+                                {{ order.orderNumber }} / {{ order.status }} / {{ order.orderedAt ? order.orderedAt|date('Y-m-d H:i') : '' }}{% if order.exportedAt %} / 出力済{% endif %}
                             </option>
                         {% endfor %}
                     </select>

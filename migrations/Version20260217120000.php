@@ -21,7 +21,7 @@ final class Version20260217120000 extends AbstractMigration
                 id INT AUTO_INCREMENT NOT NULL,
                 order_number VARCHAR(32) NOT NULL,
                 status VARCHAR(32) NOT NULL,
-                ordered_at DATETIME NOT NULL,
+                ordered_at DATETIME DEFAULT NULL,
                 completed_at DATETIME DEFAULT NULL,
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,

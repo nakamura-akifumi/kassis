@@ -1,0 +1,67 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}発注書編集{% endblock %}
+
+{% block body %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h1 class="h4 mb-1">発注書編集</h1>
+            <p class="text-muted small mb-0">発注情報を更新します。</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="{{ path('app_acquisition_order_manage') }}">発注管理へ</a>
+        </div>
+    </div>
+
+    <form method="post" action="{{ path('app_acquisition_order_edit', {id: order.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('order_edit_' ~ order.id) }}">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                <strong>発注情報</strong>
+                <button type="submit" class="btn btn-primary btn-sm">更新</button>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-number">発注番号</label>
+                        <input type="text" class="form-control form-control-sm" id="order-number" name="order_number" required value="{{ order.orderNumber }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-vendor">発注先</label>
+                        <input type="text" class="form-control form-control-sm" id="order-vendor" name="vendor" value="{{ order.vendor }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-amount">発注金額</label>
+                        <input type="number" class="form-control form-control-sm" id="order-amount" name="order_amount" min="0" step="1" value="{{ order.orderAmount }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-delivery">納品予定日</label>
+                        <input type="date" class="form-control form-control-sm" id="order-delivery" name="delivery_due_date" value="{{ order.deliveryDueDate ? order.deliveryDueDate|date('Y-m-d') : '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-estimate">見積番号</label>
+                        <input type="text" class="form-control form-control-sm" id="order-estimate" name="estimate_number" value="{{ order.estimateNumber }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-vendor-contact">発注先担当者</label>
+                        <input type="text" class="form-control form-control-sm" id="order-vendor-contact" name="vendor_contact" value="{{ order.vendorContact }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-contact">発注元担当者</label>
+                        <input type="text" class="form-control form-control-sm" id="order-contact" name="order_contact" value="{{ order.orderContact }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-1" for="order-external">その他管理番号</label>
+                        <input type="text" class="form-control form-control-sm" id="order-external" name="external_reference" value="{{ order.externalReference }}">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small mb-1" for="order-memo">メモ</label>
+                        <textarea class="form-control form-control-sm" id="order-memo" name="memo" rows="2">{{ order.memo }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

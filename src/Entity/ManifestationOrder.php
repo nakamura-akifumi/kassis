@@ -13,8 +13,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'manifestation_order')]
 class ManifestationOrder
 {
+    public const STATUS_IN_PROGRESS = 'In Progress';
     public const STATUS_ORDERED = 'Ordered';
     public const STATUS_COMPLETED = 'Completed';
+    public const STATUS_DELETED = 'Deleted';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -24,14 +26,41 @@ class ManifestationOrder
     #[ORM\Column(length: 32, unique: true)]
     private string $order_number;
 
-    #[ORM\Column(length: 32)]
-    private string $status = self::STATUS_ORDERED;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $vendor = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    private ?int $order_amount = null;
+
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $delivery_due_date = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $estimate_number = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $vendor_contact = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $order_contact = null;
+
+    #[ORM\Column(length: 64, nullable: true)]
+    private ?string $external_reference = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $memo = null;
+
+    #[ORM\Column(length: 32)]
+    private string $status = self::STATUS_IN_PROGRESS;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $ordered_at = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $completed_at = null;
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $exported_at = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $created_at = null;
@@ -93,9 +122,108 @@ class ManifestationOrder
         return $this->completed_at;
     }
 
+    public function getVendor(): ?string
+    {
+        return $this->vendor;
+    }
+
+    public function setVendor(?string $vendor): static
+    {
+        $this->vendor = $vendor;
+        return $this;
+    }
+
+    public function getOrderAmount(): ?int
+    {
+        return $this->order_amount;
+    }
+
+    public function setOrderAmount(?int $order_amount): static
+    {
+        $this->order_amount = $order_amount;
+        return $this;
+    }
+
+    public function getDeliveryDueDate(): ?\DateTimeInterface
+    {
+        return $this->delivery_due_date;
+    }
+
+    public function setDeliveryDueDate(?\DateTimeInterface $delivery_due_date): static
+    {
+        $this->delivery_due_date = $delivery_due_date;
+        return $this;
+    }
+
+    public function getEstimateNumber(): ?string
+    {
+        return $this->estimate_number;
+    }
+
+    public function setEstimateNumber(?string $estimate_number): static
+    {
+        $this->estimate_number = $estimate_number;
+        return $this;
+    }
+
+    public function getVendorContact(): ?string
+    {
+        return $this->vendor_contact;
+    }
+
+    public function setVendorContact(?string $vendor_contact): static
+    {
+        $this->vendor_contact = $vendor_contact;
+        return $this;
+    }
+
+    public function getOrderContact(): ?string
+    {
+        return $this->order_contact;
+    }
+
+    public function setOrderContact(?string $order_contact): static
+    {
+        $this->order_contact = $order_contact;
+        return $this;
+    }
+
+    public function getExternalReference(): ?string
+    {
+        return $this->external_reference;
+    }
+
+    public function setExternalReference(?string $external_reference): static
+    {
+        $this->external_reference = $external_reference;
+        return $this;
+    }
+
+    public function getMemo(): ?string
+    {
+        return $this->memo;
+    }
+
+    public function setMemo(?string $memo): static
+    {
+        $this->memo = $memo;
+        return $this;
+    }
+
     public function setCompletedAt(?\DateTimeInterface $completed_at): static
     {
         $this->completed_at = $completed_at;
+        return $this;
+    }
+
+    public function getExportedAt(): ?\DateTimeInterface
+    {
+        return $this->exported_at;
+    }
+
+    public function setExportedAt(?\DateTimeInterface $exported_at): static
+    {
+        $this->exported_at = $exported_at;
         return $this;
     }
 
@@ -132,7 +260,7 @@ class ManifestationOrder
         $now = new \DateTime();
         $this->created_at = $now;
         $this->updated_at = $now;
-        if ($this->ordered_at === null) {
+        if ($this->ordered_at === null && $this->status === self::STATUS_ORDERED) {
             $this->ordered_at = $now;
         }
     }
