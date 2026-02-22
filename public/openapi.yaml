@@ -1,0 +1,231 @@
+openapi: 3.0.3
+info:
+  title: Kassis External API
+  version: 1.0.0
+servers:
+  - url: / 
+security:
+  - bearerAuth: []
+paths:
+  /api/manifestations:
+    get:
+      summary: Search manifestations
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+        - in: query
+          name: identifier
+          schema:
+            type: string
+        - in: query
+          name: external_identifier1
+          schema:
+            type: string
+        - in: query
+          name: type1
+          schema:
+            type: string
+        - in: query
+          name: type2
+          schema:
+            type: string
+        - in: query
+          name: sort
+          schema:
+            type: string
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [simple, multi, advanced]
+      responses:
+        '200':
+          description: Manifestation list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ManifestationSummary'
+                  count:
+                    type: integer
+  /api/circulation/reserve:
+    post:
+      summary: Reserve a manifestation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [memberIdentifier, manifestationIdentifier]
+              properties:
+                memberIdentifier:
+                  type: string
+                manifestationIdentifier:
+                  type: string
+                expiryDate:
+                  type: integer
+                  description: Days until expiry
+      responses:
+        '200':
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/circulation/checkout:
+    post:
+      summary: Checkout manifestations
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [memberIdentifier, manifestationIdentifiers]
+              properties:
+                memberIdentifier:
+                  type: string
+                manifestationIdentifiers:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Checkout result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/circulation/checkin:
+    post:
+      summary: Checkin a manifestation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [manifestationIdentifier]
+              properties:
+                manifestationIdentifier:
+                  type: string
+      responses:
+        '200':
+          description: Checkin result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckinResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ManifestationSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        identifier:
+          type: string
+        externalIdentifier1:
+          type: string
+          nullable: true
+        type1:
+          type: string
+          nullable: true
+        type2:
+          type: string
+          nullable: true
+        type3:
+          type: string
+          nullable: true
+        type4:
+          type: string
+          nullable: true
+        location1:
+          type: string
+          nullable: true
+        location2:
+          type: string
+          nullable: true
+        status1:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+    ReservationResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        reservationId:
+          type: integer
+        reservationStatus:
+          type: string
+    CheckoutResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        checkoutCount:
+          type: integer
+    CheckinResponse:
+      type: object
+      properties:
+        status:
+          type: string
+        checkedIn:
+          type: boolean
+        manifestationIdentifier:
+          type: string
+        memberIdentifier:
+          type: string
+          nullable: true
+        checkedInAt:
+          type: string
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
