@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-#[Route('/api/circulation')]
+#[Route('/api/v1/circulation')]
 final class CirculationApiController extends AbstractController
 {
     #[Route('/reserve', name: 'api_circulation_reserve', methods: ['POST'])]

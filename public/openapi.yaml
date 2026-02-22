@@ -7,7 +7,7 @@ servers:
 security:
   - bearerAuth: []
 paths:
-  /api/manifestations:
+  /api/v1/manifestations:
     get:
       summary: Search manifestations
       security:
@@ -56,7 +56,7 @@ paths:
                       $ref: '#/components/schemas/ManifestationSummary'
                   count:
                     type: integer
-  /api/circulation/reserve:
+  /api/v1/circulation/reserve:
     post:
       summary: Reserve a manifestation
       security:
@@ -89,7 +89,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/circulation/checkout:
+  /api/v1/circulation/checkout:
     post:
       summary: Checkout manifestations
       security:
@@ -121,7 +121,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/circulation/checkin:
+  /api/v1/circulation/checkin:
     post:
       summary: Checkin a manifestation
       security:

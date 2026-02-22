@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/api/manifestations')]
+#[Route('/api/v1/manifestations')]
 final class ManifestationApiController extends AbstractController
 {
     #[Route('', name: 'api_manifestation_search', methods: ['GET'])]
