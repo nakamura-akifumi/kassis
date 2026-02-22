@@ -1,0 +1,10 @@
+{{ member.fullName }} 様
+
+以下の資料の貸出が完了しました。
+
+{% for checkout in checkouts %}
+- {{ checkout.manifestation.title }} ({{ checkout.manifestation.identifier }})
+  返却期限: {{ checkout.dueDate ? checkout.dueDate|date('Y-m-d') : '' }}
+{% endfor %}
+
+ご利用ありがとうございます。

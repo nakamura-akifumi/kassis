@@ -33,3 +33,7 @@ parameters:
         renew_limit: 1
         reservation_limit: 3
         adjust_due_on_closed_day: false
+    app.notification.from_email: '%env(MAILER_FROM_EMAIL)%'
+    app.notification.from_name: '%env(MAILER_FROM_NAME)%'
+    app.notification.slack.enabled: '%env(bool:SLACK_ENABLED)%'
+    app.notification.slack.webhook_url: '%env(SLACK_WEBHOOK_URL)%'

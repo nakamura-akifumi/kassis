@@ -1,0 +1,4 @@
+返却が完了しました
+利用者: {{ member.fullName }} ({{ member.identifier }})
+資料: {{ manifestation.title }} / {{ manifestation.identifier }}
+返却日時: {{ checkout.checkedInAt ? checkout.checkedInAt|date('Y-m-d H:i') : '' }}

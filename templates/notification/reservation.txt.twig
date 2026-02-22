@@ -1,0 +1,10 @@
+{{ member.fullName }} 様
+
+以下の資料の予約を受け付けました。
+
+資料タイトル: {{ manifestation.title }}
+資料識別子: {{ manifestation.identifier }}
+予約日時: {{ reservation.reservedAt ? reservation.reservedAt|date('Y-m-d H:i') : '' }}
+予約状態: {{ reservation.status }}
+
+ご利用ありがとうございます。

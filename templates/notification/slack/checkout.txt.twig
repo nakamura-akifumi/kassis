@@ -1,0 +1,6 @@
+貸出が完了しました
+利用者: {{ member.fullName }} ({{ member.identifier }})
+貸出件数: {{ checkouts|length }}
+{% for checkout in checkouts %}
+- {{ checkout.manifestation.title }} / {{ checkout.manifestation.identifier }} (返却期限: {{ checkout.dueDate ? checkout.dueDate|date('Y-m-d') : '' }})
+{% endfor %}

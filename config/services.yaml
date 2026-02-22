@@ -32,6 +32,16 @@ services:
             $projectDir: '%kernel.project_dir%'
             $useNdl: '%app.amazon_import.use_ndl%'
 
+    App\Notification\MailChannel:
+        tags: ['app.notification_channel']
+
+    App\Notification\SlackChannel:
+        tags: ['app.notification_channel']
+
+    App\Service\NotificationService:
+        arguments:
+            $channels: !tagged_iterator app.notification_channel
+
     App\Service\NumberingService:
         arguments:
             $manifestationIdentifierRule: '%app.manifestation.identifier_rule%'

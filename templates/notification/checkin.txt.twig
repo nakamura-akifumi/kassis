@@ -1,0 +1,9 @@
+{{ member.fullName }} 様
+
+以下の資料の返却が完了しました。
+
+資料タイトル: {{ manifestation.title }}
+資料識別子: {{ manifestation.identifier }}
+返却日時: {{ checkout.checkedInAt ? checkout.checkedInAt|date('Y-m-d H:i') : '' }}
+
+ご利用ありがとうございます。

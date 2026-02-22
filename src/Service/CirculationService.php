@@ -8,6 +8,7 @@ use App\Entity\LoanGroup;
 use App\Entity\LoanGroupType1;
 use App\Entity\Manifestation;
 use App\Entity\Reservation;
+use App\Service\NotificationService;
 use App\Repository\CheckoutRepository;
 use App\Repository\ManifestationRepository;
 use App\Repository\MemberRepository;
@@ -32,6 +33,7 @@ class CirculationService
         private TranslatorInterface $translator,
         private LoggerInterface $logger,
         private ParameterBagInterface $params,
+        private NotificationService $notificationService,
     ) {
     }
 
@@ -62,6 +64,8 @@ class CirculationService
         }
 
         $this->entityManager->flush();
+
+        $this->notificationService->notifyReservation($reservation);
 
         return $reservation;
     }
@@ -217,6 +221,8 @@ class CirculationService
 
         $this->entityManager->flush();
 
+        $this->notificationService->notifyCheckout($member, $results);
+
         return $results;
     }
 
@@ -252,6 +258,10 @@ class CirculationService
         }
 
         $this->entityManager->flush();
+
+        if ($checkout !== null) {
+            $this->notificationService->notifyCheckin($checkout);
+        }
 
         return $checkout;
     }
