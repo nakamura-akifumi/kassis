@@ -35,9 +35,10 @@ class ManifestationExportImportController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $uploadFile = $form->get('uploadFile')->getData();
+            $defaultStatus = $form->get('defaultStatus')->getData();
 
             if ($uploadFile) {
-                $result = $fileService->importManifestationsFromFile($uploadFile);
+                $result = $fileService->importManifestationsFromFile($uploadFile, $defaultStatus);
 
                 if ($result['errors'] === 0 && $result['success'] > 0) {
                     $this->addFlash('success', sprintf('インポート完了: %d件（スキップ: %d件）', $result['success'], $result['skipped']));

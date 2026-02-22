@@ -3,6 +3,7 @@
 namespace App\Form;
 
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -34,6 +35,22 @@ class ManifestationFileImportFormType extends AbstractType
                 'accept' => '.xlsx,.csv',
             ],
             'help' => '「/file/export」で出力できる列構成（ID/タイトル/著者/出版社/出版年/ISBN）のファイルをアップロードしてください。',
+        ]);
+
+        $builder->add('defaultStatus', ChoiceType::class, [
+            'label' => '新規レコードのステータス',
+            'mapped' => false,
+            'required' => false,
+            'placeholder' => 'ファイルの値を優先',
+            'choices' => [
+                '新規' => 'New',
+                '発注' => 'Ordered',
+                'Available' => 'Available',
+            ],
+            'attr' => [
+                'class' => 'form-select form-select-sm',
+            ],
+            'help' => 'ステータス列が空の場合のみ、新規作成分に適用されます。',
         ]);
     }
 

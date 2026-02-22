@@ -23,6 +23,14 @@
                         {{ form_errors(form.uploadFile) }}
                     </div>
                 </div>
+                <div class="mb-3">
+                    {{ form_label(form.defaultStatus, null, {'label_attr': {'class': 'form-label small mb-0 fw-bold'}}) }}
+                    {{ form_widget(form.defaultStatus) }}
+                    {{ form_help(form.defaultStatus) }}
+                    <div class="form-text text-danger small">
+                        {{ form_errors(form.defaultStatus) }}
+                    </div>
+                </div>
 
                 <div class="d-grid gap-2 d-md-flex justify-content-md-start">
                     <button type="submit" class="btn btn-primary btn-sm" id="file-import-submit-btn">

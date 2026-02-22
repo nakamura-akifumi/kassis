@@ -169,7 +169,7 @@ class FileService
      *
      * @return array{success:int, skipped:int, errors:int, errorMessages: string[]}
      */
-    public function importManifestationsFromFile(UploadedFile $file): array
+    public function importManifestationsFromFile(UploadedFile $file, ?string $defaultStatusForNew = null): array
     {
         $result = [
             'success' => 0,
@@ -177,6 +177,16 @@ class FileService
             'errors' => 0,
             'errorMessages' => [],
         ];
+
+        $defaultStatusNormalized = null;
+        if ($defaultStatusForNew !== null && trim($defaultStatusForNew) !== '') {
+            $defaultStatusNormalized = $this->statusResolver->normalize($defaultStatusForNew);
+            if ($defaultStatusNormalized === null) {
+                $result['errors']++;
+                $result['errorMessages'][] = '新規ステータスの指定が不正です。';
+                return $result;
+            }
+        }
 
         try {
             $spreadsheet = $this->loadSpreadsheet($file);
@@ -277,6 +287,7 @@ class FileService
                         $manifestation->setContributor1($cellvals['contributor1']);
                         $manifestation->setContributor2($cellvals['contributor2']);
                     }
+                    $isNew = $manifestation->getId() === null;
 
                     if (isset($cellvals['external_identifier2'])) {
                         $manifestation->setExternalIdentifier2($cellvals['external_identifier2']);
@@ -338,6 +349,8 @@ class FileService
                     if (isset($cellvals['status1']) && !$this->isBlank($cellvals['status1'])) {
                         $normalizedStatus = $this->statusResolver->assertValid($cellvals['status1']);
                         $manifestation->setStatus1($normalizedStatus);
+                    } elseif ($isNew && $defaultStatusNormalized !== null) {
+                        $manifestation->setStatus1($defaultStatusNormalized);
                     }
                     if (isset($cellvals['status2'])) {
                         $manifestation->setStatus2($cellvals['status2']);

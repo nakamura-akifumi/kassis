@@ -16,6 +16,8 @@ parameters:
     app.manifestation.type2.export_display_name: true
     app.manifestation.type3.export_display_name: true
     app.manifestation.type4.export_display_name: true
+    app.export.manifestations.default_preset: min
+    app.export.manifestations.presets: {}
     app.manifestation.search_limits:
         list: 100
         panel: 20
@@ -27,6 +29,8 @@ parameters:
     app.member.group1: ['standard', 'vip', 'guest']
     app.member.status: ['active', 'inactive', 'expired']
     app.member.role: ['member','staff','admin']
+    app.export.members.default_preset: min
+    app.export.members.presets: {}
     app.loan_condition.defaults:
         loan_limit: 5
         loan_period: 7

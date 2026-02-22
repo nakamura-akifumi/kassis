@@ -72,6 +72,8 @@ Webhook URL が表示されるので、.env.local に設定する。
 例：
 https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX
 
+php bin/console app:export:manifestations ~/m.xlsx
+
 ### Ubuntu 24.04 LTS
 
 sudo apt install php8.4-mysql
