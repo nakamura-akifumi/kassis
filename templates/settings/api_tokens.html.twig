@@ -30,6 +30,13 @@
                     <label class="form-label small mb-1" for="api_token_name">トークン名</label>
                     <input class="form-control form-control-sm" id="api_token_name" name="name" type="text" required>
                 </div>
+                <div>
+                    <label class="form-label small mb-1" for="api_token_expires_at">有効期限</label>
+                    <input class="form-control form-control-sm" id="api_token_expires_at" name="expires_at" type="datetime-local">
+                </div>
+                <div>
+                    <div class="form-text small">未入力の場合は無期限</div>
+                </div>
                 <button type="submit" class="btn btn-primary btn-sm">作成</button>
             </form>
         </div>
@@ -49,6 +56,7 @@
                                 <th>状態</th>
                                 <th>作成日時</th>
                                 <th>最終使用</th>
+                                <th>有効期限</th>
                                 <th class="text-end">操作</th>
                             </tr>
                         </thead>
@@ -65,6 +73,7 @@
                                     </td>
                                     <td>{{ token.createdAt ? token.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td>{{ token.lastUsedAt ? token.lastUsedAt|date('Y-m-d H:i') : '-' }}</td>
+                                    <td>{{ token.expiresAt ? token.expiresAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
                                         <form method="post" action="{{ path('app_settings_api_tokens_toggle', {id: token.id}) }}" class="d-inline">
                                             <input type="hidden" name="_token" value="{{ csrf_token('api_token_toggle_' ~ token.id) }}">

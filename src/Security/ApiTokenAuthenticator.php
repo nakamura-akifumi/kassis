@@ -54,6 +54,10 @@ class ApiTokenAuthenticator extends AbstractAuthenticator
         if ($apiToken === null) {
             throw new CustomUserMessageAuthenticationException('Invalid bearer token.');
         }
+        $expiresAt = $apiToken->getExpiresAt();
+        if ($expiresAt !== null && $expiresAt <= new \DateTimeImmutable()) {
+            throw new CustomUserMessageAuthenticationException('Bearer token has expired.');
+        }
 
         $apiToken->setLastUsedAt(new \DateTimeImmutable());
         $this->entityManager->flush();

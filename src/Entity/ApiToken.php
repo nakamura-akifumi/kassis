@@ -27,6 +27,9 @@ class ApiToken
     #[ORM\Column(name: 'last_used_at', nullable: true)]
     private ?\DateTimeImmutable $lastUsedAt = null;
 
+    #[ORM\Column(name: 'expires_at', nullable: true)]
+    private ?\DateTimeImmutable $expiresAt = null;
+
     #[ORM\Column(options: ['default' => true])]
     private bool $enabled = true;
 
@@ -76,6 +79,17 @@ class ApiToken
     public function setLastUsedAt(?\DateTimeImmutable $lastUsedAt): self
     {
         $this->lastUsedAt = $lastUsedAt;
+        return $this;
+    }
+
+    public function getExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->expiresAt;
+    }
+
+    public function setExpiresAt(?\DateTimeImmutable $expiresAt): self
+    {
+        $this->expiresAt = $expiresAt;
         return $this;
     }
 

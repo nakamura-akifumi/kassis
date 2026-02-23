@@ -41,3 +41,4 @@ parameters:
     app.notification.from_name: '%env(MAILER_FROM_NAME)%'
     app.notification.slack.enabled: '%env(bool:SLACK_ENABLED)%'
     app.notification.slack.webhook_url: '%env(SLACK_WEBHOOK_URL)%'
+    app.api_token.default_expiry_days: 720

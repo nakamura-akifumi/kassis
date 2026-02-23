@@ -31,10 +31,25 @@ final class ApiTokenController extends AbstractController
             }
 
             $rawToken = bin2hex(random_bytes(32));
+            $expiresAtInput = trim((string) $request->request->get('expires_at'));
+            $expiresAt = null;
+            if ($expiresAtInput !== '') {
+                $expiresAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $expiresAtInput);
+                if ($expiresAt === false) {
+                    $this->addFlash('danger', '有効期限の形式が不正です。');
+                    return $this->redirectToRoute('app_settings_api_tokens');
+                }
+            } else {
+                $defaultDays = $this->getParameter('app.api_token.default_expiry_days');
+                if (is_numeric($defaultDays) && (int) $defaultDays > 0) {
+                    $expiresAt = (new \DateTimeImmutable())->modify('+' . (int) $defaultDays . ' days');
+                }
+            }
             $token = new ApiToken();
             $token->setName($name);
             $token->setTokenHash(hash('sha256', $rawToken));
             $token->setCreatedAt(new \DateTimeImmutable());
+            $token->setExpiresAt($expiresAt);
             $token->setEnabled(true);
 
             $entityManager->persist($token);
