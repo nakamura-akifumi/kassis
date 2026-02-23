@@ -32,10 +32,7 @@
                 </div>
                 <div>
                     <label class="form-label small mb-1" for="api_token_expires_at">有効期限</label>
-                    <input class="form-control form-control-sm" id="api_token_expires_at" name="expires_at" type="datetime-local">
-                </div>
-                <div>
-                    <div class="form-text small">未入力の場合は無期限</div>
+                    <input class="form-control form-control-sm" id="api_token_expires_at" name="expires_at" type="datetime-local" value="{{ defaultExpiresAt }}" required>
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm">作成</button>
             </form>

@@ -17,6 +17,11 @@ final class ApiTokenController extends AbstractController
     public function index(Request $request, ApiTokenRepository $apiTokenRepository, EntityManagerInterface $entityManager): Response
     {
         $createdToken = null;
+        $defaultExpiresAt = null;
+        $defaultDays = $this->getParameter('app.api_token.default_expiry_days');
+        if (is_numeric($defaultDays) && (int) $defaultDays > 0) {
+            $defaultExpiresAt = (new \DateTimeImmutable())->modify('+' . (int) $defaultDays . ' days');
+        }
 
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('api_token_create', (string) $request->request->get('_token'))) {
@@ -32,18 +37,14 @@ final class ApiTokenController extends AbstractController
 
             $rawToken = bin2hex(random_bytes(32));
             $expiresAtInput = trim((string) $request->request->get('expires_at'));
-            $expiresAt = null;
-            if ($expiresAtInput !== '') {
-                $expiresAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $expiresAtInput);
-                if ($expiresAt === false) {
-                    $this->addFlash('danger', '有効期限の形式が不正です。');
-                    return $this->redirectToRoute('app_settings_api_tokens');
-                }
-            } else {
-                $defaultDays = $this->getParameter('app.api_token.default_expiry_days');
-                if (is_numeric($defaultDays) && (int) $defaultDays > 0) {
-                    $expiresAt = (new \DateTimeImmutable())->modify('+' . (int) $defaultDays . ' days');
-                }
+            if ($expiresAtInput === '') {
+                $this->addFlash('danger', '有効期限を入力してください。');
+                return $this->redirectToRoute('app_settings_api_tokens');
+            }
+            $expiresAt = \DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $expiresAtInput);
+            if ($expiresAt === false) {
+                $this->addFlash('danger', '有効期限の形式が不正です。');
+                return $this->redirectToRoute('app_settings_api_tokens');
             }
             $token = new ApiToken();
             $token->setName($name);
@@ -64,6 +65,7 @@ final class ApiTokenController extends AbstractController
         return $this->render('settings/api_tokens.html.twig', [
             'tokens' => $tokens,
             'createdToken' => $createdToken,
+            'defaultExpiresAt' => $defaultExpiresAt?->format('Y-m-d\\TH:i'),
         ]);
     }
 
