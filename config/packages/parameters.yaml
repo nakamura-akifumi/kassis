@@ -16,6 +16,8 @@ parameters:
     app.manifestation.type2.export_display_name: true
     app.manifestation.type3.export_display_name: true
     app.manifestation.type4.export_display_name: true
+    app.manifestation.import_status_selectable: true
+    app.manifestation.import_status_choices: ['New', 'Ordered', 'Available']
     app.export.manifestations.default_preset: min
     app.export.manifestations.presets: {}
     app.manifestation.search_limits:

@@ -35,7 +35,7 @@ class ManifestationExportImportController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $uploadFile = $form->get('uploadFile')->getData();
-            $defaultStatus = $form->get('defaultStatus')->getData();
+            $defaultStatus = $form->has('defaultStatus') ? $form->get('defaultStatus')->getData() : null;
 
             if ($uploadFile) {
                 $result = $fileService->importManifestationsFromFile($uploadFile, $defaultStatus);

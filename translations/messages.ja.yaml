@@ -41,6 +41,19 @@ Model:
         none: "なし"
         public: "通常貸出"
         restricted: "貸出禁止"
+      Status:
+        New: "新規"
+        "Awaiting Order": "発注待ち"
+        Ordered: "発注済"
+        Received: "受入済"
+        Available: "利用可"
+        ”On Hold": "予約待ち"
+        "Awaiting Shelving": "取り置き済み"
+        Reserved: "予約済"
+        "Checked Out": "貸出中"
+        Lost: "紛失"
+        "Pending Discard": "廃棄待ち"
+        Discarded: "廃棄済"
     fields:
       Id: "ID"
       Title: "タイトル"
@@ -104,19 +117,6 @@ Model:
   LoanGroup:
     values:
       all_group_members_identifier: "全て"
-Workflow:
-  Manifestation:
-    Status:
-      New: "新規"
-      "Awaiting Order": "発注待ち"
-      Ordered: "発注済"
-      Received: "受入済"
-      Available: "利用可"
-      Reserved: "予約済"
-      "Checked Out": "貸出中"
-      Lost: "紛失"
-      "Pending Discard": "廃棄待ち"
-      Discarded: "廃棄済"
 Date:
   Weekday:
     Mon: "月"
